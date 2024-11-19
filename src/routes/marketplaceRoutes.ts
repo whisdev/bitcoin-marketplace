@@ -8,14 +8,11 @@ import {
     generateUserBuyBTCPsbt,
     pushSwapPsbt,
 } from '../controller/marketplaceController';
-import { testVersion } from "../config/config";
+import { 
+    testVersion,
+    privateKey
+ } from "../config/config";
 import { LocalWallet } from "../service/localWallet";
-
-const privateKey1: string = process.env.WIF_KEY1 as string;
-const privateKey2: string = process.env.WIF_KEY2 as string;
-
-export const adminWallet1 = new LocalWallet(privateKey1 as string, testVersion ? 1 : 0);
-export const adminWallet2 = new LocalWallet(privateKey2 as string, testVersion ? 1 : 0);
 
 const marketplaceRouter = Router();
 

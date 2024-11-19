@@ -2,8 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const OPENAPI_UNISAT_TOKEN: string = process.env.OPENAPI_UNISAT_TOKEN as string;
-export const privateKey1: string = process.env.WIF_KEY1 as string;
-export const privateKey2: string = process.env.WIF_KEY2 as string;
+export const privateKey: string = process.env.WIF_KEY as string;
 export const nusdPrivKey: string = process.env.NUSDWIF_KEY as string;
 export const MongoDBUrl: string = process.env.MONGDB_URL as string;
 

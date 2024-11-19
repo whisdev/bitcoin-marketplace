@@ -22,8 +22,7 @@ import {
     SPLIT_ADDRESS_SIZE,
     STANDARD_RUNE_UTXO_VALUE,
     SEND_UTXO_FEE_LIMIT,
-    privateKey1,
-    privateKey2,
+    privateKey,
 } from '../config/config';
 import * as ecc from "tiny-secp256k1";
 import ECPairFactory from 'ecpair';
@@ -34,7 +33,8 @@ const ECPair = ECPairFactory(ecc);
 
 const network = testVersion ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
 
-const poolWallet = new LocalWallet(privateKey1 as string, testVersion ? 1 : 0);
+console.log('privateKey :>> ', privateKey);
+const poolWallet = new LocalWallet(privateKey as string, testVersion ? 1 : 0);
 
 export const generateUserBuyRunePsbt = async (
     userPubkey: string,

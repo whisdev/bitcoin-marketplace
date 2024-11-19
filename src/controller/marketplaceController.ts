@@ -38,7 +38,7 @@ dotenv.config();
 
 const network = testVersion ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
 
-const privateKey1: string = process.env.WIF_KEY1 as string;
+const privateKey: string = process.env.WIF_KEY as string;
 
 export const generateUserBuyRunePsbt = async (
     userPubkey: string,
@@ -88,7 +88,6 @@ export const generateUserBuyRunePsbt = async (
                 script: Buffer.from(runeutxo.scriptpubkey, "hex"),
             },
             tapInternalKey: pubkeyBuffer,
-            sighashType: bitcoin.Transaction.SIGHASH_ALL
         });
 
         poolInputArray.push(cnt++);
@@ -109,7 +108,6 @@ export const generateUserBuyRunePsbt = async (
                 script: pubkeyBuffer,
             },
             tapInternalKey: pubkeyBuffer.slice(1, 33),
-            sighashType: bitcoin.Transaction.SIGHASH_ALL
         });
 
         poolInputArray.push(cnt++);
@@ -179,7 +177,6 @@ export const generateUserBuyRunePsbt = async (
                     value: btcutxo.value,
                 },
                 tapInternalKey: Buffer.from(userPubkey, "hex").slice(1, 33),
-                sighashType: bitcoin.Transaction.SIGHASH_ALL
             });
 
             userInputArray.push(cnt++);
@@ -262,7 +259,6 @@ export const generateUserBuyBTCPsbt = async (
                 script: Buffer.from(runeutxo.scriptpubkey, "hex"),
             },
             tapInternalKey: pubkeyBuffer,
-            sighashType: bitcoin.Transaction.SIGHASH_ALL
         });
 
         userInputArray.push(cnt++);
@@ -318,7 +314,6 @@ export const generateUserBuyBTCPsbt = async (
                     value: btcutxo.value,
                 },
                 tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
-                sighashType: bitcoin.Transaction.SIGHASH_ALL
             });
 
             poolInputArray.push(cnt++);
@@ -360,7 +355,6 @@ export const generateUserBuyBTCPsbt = async (
                     value: btcutxo.value,
                 },
                 tapInternalKey: Buffer.from(userPubkey, "hex").slice(1, 33),
-                sighashType: bitcoin.Transaction.SIGHASH_ALL
             });
 
             userInputArray.push(cnt++);
@@ -415,10 +409,10 @@ export const pushSwapPsbt = async (
 
     const tempPsbt = bitcoin.Psbt.fromHex(psbt);
 
-    const keyPair1 = ECPair.fromWIF(privateKey1, network);
+    const keyPair = ECPair.fromWIF(privateKey, network);
 
     poolInputArray.map((input: number) => {
-        tempPsbt.signInput(input, keyPair1);
+        tempPsbt.signInput(input, keyPair);
     })
 
     console.log('tempPsbt :>> ', tempPsbt);
