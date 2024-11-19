@@ -1,3 +1,5 @@
+import TransactionInfoModal from "../model/TransactionInfo";
+
 export const splitData = (data: Array<any>, bundleSize: number): Array<any> => {
   // initialize new splited Data array
   let newSplitDataArray: Array<any> = [];
@@ -27,3 +29,14 @@ export const splitData = (data: Array<any>, bundleSize: number): Array<any> => {
   }
   return newSplitDataArray;
 };
+
+export const filterTransactionInfo = async (
+  poolAddress: string,
+  txList: Array<string>
+) => {
+  const txInfoList = await TransactionInfoModal.find({
+    poolId: poolAddress
+  })
+
+  return txInfoList.filter(txInfo => !txList.includes(txInfo.txId));
+}

@@ -5,15 +5,11 @@ import path from 'path';
 import http from 'http';
 import cron from "node-cron";
 
-import swapRouter from './routes/swapRoutes';
-import taprootRouter from './routes/taprootRoutes';
-import airdropRouter from './routes/airdropRoutes';
-import userRouter from './routes/userRoutes';
 import testRouter from './routes/testRoutes';
 
 import { connectMongoDB } from './utils/db';
 import { MongoDBUrl } from './config/config';
-import { checkTxStatus } from './controller/airdropController';
+import marketplaceRouter from './routes/marketplaceRoutes';
 
 const PORT = process.env.PORT || 5001;
 
@@ -43,19 +39,20 @@ app.locals.iterator = 0;
 // Set up Cross-Origin Resource Sharing (CORS) options
 app.use(cors())
 
-app.use('/api/swap', swapRouter);
-app.use('/api/taproot', taprootRouter);
-app.use('/api/airdrop', airdropRouter);
-app.use('/api/user', userRouter);
+// app.use('/api/swap', swapRouter);
+// app.use('/api/taproot', taprootRouter);
+// app.use('/api/airdrop', airdropRouter);
+// app.use('/api/user', userRouter);
+app.use('/api/marketplace', marketplaceRouter);
 app.use('/api/test', testRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-cron.schedule("*/10 * * * *", async () => {
-  console.log("running a task every 10 minute");
-  await checkTxStatus();
-});
+// cron.schedule("*/10 * * * *", async () => {
+//   console.log("running a task every 10 minute");
+//   await checkTxStatus();
+// });
 
 export default app;
