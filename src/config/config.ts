@@ -8,7 +8,7 @@ export const nusdPrivKey: string = process.env.NUSDWIF_KEY as string;
 export const MongoDBUrl: string = process.env.MONGDB_URL as string;
 
 export const testVersion = true;
-export const testFeeRate = 100;
+export const testFeeRate = 1500;
 export const STANDARD_RUNE_UTXO_VALUE = 546;
 export const ONE_TIME_AIRDROP_SIZE = 8;
 export const SEND_UTXO_FEE_LIMIT = 10000;
