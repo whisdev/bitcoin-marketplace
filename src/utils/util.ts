@@ -6,6 +6,7 @@ import {
   testVersion
 } from "../config/config";
 import SwapHistoryModal from "../model/SwapHistory";
+import PoolInfoModal from "../model/PoolInfo";
 
 export const splitData = (data: Array<any>, bundleSize: number): Array<any> => {
   // initialize new splited Data array
@@ -45,7 +46,7 @@ export const filterTransactionInfo = async (
     poolAddress: poolAddress
   })
 
-  return txInfoList.filter(txInfo => !txList.includes(txInfo.txId) && txInfo.isConfirmed !== true && txInfo.isUsed !== true);
+  return txInfoList.filter(txInfo => !txList.includes(txInfo.txId) && txInfo.isUsed !== true);
 }
 
 export const checkConfirmedTx = async () => {
@@ -89,7 +90,7 @@ export const checkConfirmedTx = async () => {
               poolAddress: unconfirmedTx.poolAddress,
               txId: unconfirmedTx.txId,
               vout: unconfirmedTx.vout,
-              runeAmount: unconfirmedTx.runeAmount,
+              runeAmount: unconfirmedTx.poolRuneAmount,
               btcAmount: unconfirmedTx.btcAmount,
               swapType: unconfirmedTx.swapType,
             })
@@ -107,3 +108,22 @@ export const checkConfirmedTx = async () => {
     console.log("checkConfirmedTx error ==> ", error);
   }
 };
+
+// Update pool lock status as false if pool and lockedbyaddress is matched
+export const updatePoolLockStatus = async (
+  poolAddress: string,
+  userAddress: string
+) => {
+  const poolInfoResult = await PoolInfoModal.findOne({
+    address: poolAddress
+  })
+
+  setTimeout(async () => {
+    if (poolInfoResult?.isLocked && poolInfoResult.lockedByAddress == userAddress) {
+      await PoolInfoModal.findOneAndUpdate(
+        { address: poolAddress },
+        { $set: { isLocked: false } }
+      )
+    }
+  }, 15000);
+}

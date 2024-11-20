@@ -13,5 +13,7 @@ export const ONE_TIME_AIRDROP_SIZE = 8;
 export const SEND_UTXO_FEE_LIMIT = 10000;
 export const networkType = testVersion ? "testnet" : "mainnet";
 
+export const SIGNATURE_SIZE = 126
+
 // Api info
 export const OPENAPI_UNISAT_URL = testVersion ? "https://open-api-testnet.unisat.io" : "https://open-api.unisat.io";

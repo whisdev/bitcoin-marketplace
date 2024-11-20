@@ -227,3 +227,12 @@ export const pushSwapPsbt = async (
 
     return txId
 }
+
+// export const setTime = async () => {
+//     const flag = true;
+//     setTimeout(() => {
+//         if (flag) {
+//             flag = false
+//         }
+//     }, 15000);
+// }

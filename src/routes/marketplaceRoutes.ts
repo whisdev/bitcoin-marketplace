@@ -2,17 +2,13 @@ import { Router } from 'express';
 import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
 import * as bitcoin from 'bitcoinjs-lib'
 
-import { pushRawTx, finalizePsbtInput, combinePsbt } from '../service/service';
 import {
     generateUserBuyRunePsbt,
-    generateUserBuyBTCPsbt,
+    generateUserBuyBtcPsbt,
     pushSwapPsbt,
+    removeSwapTransaction,
 } from '../controller/marketplaceController';
-import {
-    testVersion,
-    privateKey
-} from "../config/config";
-import { LocalWallet } from "../service/localWallet";
+import { flagList } from '../server';
 
 const marketplaceRouter = Router();
 
@@ -37,11 +33,11 @@ marketplaceRouter.post('/generateUserBuyRunePsbt', async (req, res, next) => {
 });
 
 // generate psbt that User buy Rune && send BTC
-marketplaceRouter.post('/generateUserBuyRunePsbt', async (req, res, next) => {
+marketplaceRouter.post('/generateUserBuyBtcPsbt', async (req, res, next) => {
     try {
         const { userPubkey, userAddress, userBuyBtcAmount, userSendingRuneAmount, poolAddress } = req.body;
 
-        const payload = await generateUserBuyBTCPsbt(userPubkey, userAddress, userBuyBtcAmount, userSendingRuneAmount, poolAddress);
+        const payload = await generateUserBuyBtcPsbt(userPubkey, userAddress, userBuyBtcAmount, userSendingRuneAmount, poolAddress);
 
         return res.status(200).send(payload)
     } catch (error) {
@@ -53,9 +49,9 @@ marketplaceRouter.post('/generateUserBuyRunePsbt', async (req, res, next) => {
 // sign and broadcast tx on Server side
 marketplaceRouter.post('/pushPsbt', async (req, res, next) => {
     try {
-        const { psbt, userSignedHexedPsbt, runeAmount, btcAmount, userInputArray, poolInputArray, poolAddress, usedTransactionList, swapType } = req.body;
+        const { psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, btcAmount, userInputArray, poolInputArray, poolAddress, usedTransactionList, swapType } = req.body;
 
-        const payload = await pushSwapPsbt(psbt, userSignedHexedPsbt, runeAmount, btcAmount, userInputArray, poolInputArray, poolAddress, usedTransactionList, swapType);
+        const payload = await pushSwapPsbt(psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, btcAmount, userInputArray, poolInputArray, poolAddress, usedTransactionList, swapType);
 
         return res.status(200).send(payload);
     } catch (error) {
@@ -64,14 +60,14 @@ marketplaceRouter.post('/pushPsbt', async (req, res, next) => {
     }
 });
 
-marketplaceRouter.post('/cancelPushPsbt', async (req, res, next) => {
+// remove swap transaction
+marketplaceRouter.post('/removeSwapTx', async (req, res, next) => {
     try {
-        const { adminAddress } = req.body;
+        const { poolAddress, userAddress } = req.body;
 
-        // const payload = await updateTxBuildingModal(adminAddress);
+        const payload = await removeSwapTransaction(poolAddress, userAddress);
 
-        // return res.status(200).send(payload);
-        return res.status(200).send("");
+        return res.status(200).send(payload);
     } catch (error) {
         console.log(error);
         return res.status(404).send(error);

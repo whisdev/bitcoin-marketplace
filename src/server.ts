@@ -39,6 +39,15 @@ app.use(cors())
 const io = new Server(server, { cors: { origin: "*" } });
 // End Socket
 
+export const flagList = [
+  {poolAddress: "tb1pw7dtq290mkjq36q3yv5h2s3wz79k2696zftd0ctsydruwjxktlrs8x8cmh", lockStatus: true},
+  {poolAddress: "tb1p2vw4xepu6glhrtt62m7pjs2exmvmesytmsmc4zce8tym9elfyxnq6506a5", lockStatus: true},
+  {poolAddress: "", lockStatus: true},
+  {poolAddress: "", lockStatus: false},
+  {poolAddress: "", lockStatus: false},
+  {poolAddress: "", lockStatus: false},
+]
+
 io.on("connection", (socket) => {
   console.log("socket connected");
   // app.use("/api/auction", AuctionRouter(io));

@@ -22,7 +22,7 @@ import {
 } from '../config/config';
 import dotenv from 'dotenv';
 import PoolInfoModal from "../model/PoolInfo";
-import { filterTransactionInfo } from "../utils/util";
+import { filterTransactionInfo, updatePoolLockStatus } from "../utils/util";
 import TransactionInfoModal from "../model/TransactionInfo";
 
 bitcoin.initEccLib(ecc);
@@ -49,6 +49,25 @@ export const generateUserBuyRunePsbt = async (
             payload: undefined,
         };
     }
+
+    // if (poolInfo.isLocked) {
+    //     return {
+    //         success: false,
+    //         message: `Pool is locked. you can access 15s later`,
+    //         payload: undefined
+    //     }
+    // }
+
+    const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
+        { address: poolAddress },
+        { $set: { isLocked: true } }
+    )
+
+    await updatePoolLockStatus(poolAddress, userAddress);
+
+    setTimeout(() => {
+        
+    }, 15000);
 
     const { runeBlockNumber, runeTxout, divisibility, publickey: poolPubkey } = poolInfo;
     const pubkeyBuffer = Buffer.from(poolPubkey, "hex").slice(1, 33);
@@ -96,19 +115,24 @@ export const generateUserBuyRunePsbt = async (
             hash: runeutxo.txId,
             index: runeutxo.vout,
             witnessUtxo: {
-                value: runeutxo.runeAmount,
+                value: runeutxo.poolRuneAmount,
                 script: pubkeyBuffer,
             },
             tapInternalKey: pubkeyBuffer.slice(1, 33),
         });
 
         poolInputArray.push(cnt++);
-        tokenSum += runeutxo.runeAmount;
+        tokenSum += runeutxo.poolRuneAmount;
         usedTxList.push(runeutxo.txId);
     }
 
     // Check if enough rune is gathered
     if (tokenSum < requiredAmount) {
+        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
+            { address: poolAddress },
+            { $set: { isLocked: false } }
+        )
+
         return {
             success: false,
             message: "Insufficient Rune balance",
@@ -183,6 +207,11 @@ export const generateUserBuyRunePsbt = async (
 
     // Check if enough BTC balance is available
     if (totalBtcAmount < fee) {
+        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
+            { address: poolAddress },
+            { $set: { isLocked: false } }
+        )
+
         return {
             success: false,
             message: "Insufficient BTC balance",
@@ -204,20 +233,19 @@ export const generateUserBuyRunePsbt = async (
             poolInputArray,
             userInputArray,
             usedTxList,
-            runeAmount: tokenSum - requiredAmount,
+            userRuneAmount: requiredAmount,
+            poolRuneAmount: tokenSum - requiredAmount,
         },
     };
 };
 
-export const generateUserBuyBTCPsbt = async (
+export const generateUserBuyBtcPsbt = async (
     userPubkey: string,
     userAddress: string,
     userBuyBtcAmount: number,
     userSendRuneAmount: number,
     poolAddress: string,
 ) => {
-    console.log('poolAddress :>> ', poolAddress);
-
     const poolInfo = await PoolInfoModal.findOne({ address: poolAddress });
     if (!poolInfo) {
         return {
@@ -226,6 +254,21 @@ export const generateUserBuyBTCPsbt = async (
             payload: undefined,
         };
     }
+
+    if (poolInfo.isLocked) {
+        return {
+            success: false,
+            message: `Pool is locked. you can access 15s later`,
+            payload: undefined
+        }
+    }
+
+    const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
+        { address: poolAddress },
+        { $set: { isLocked: true } }
+    )
+
+    await updatePoolLockStatus(poolAddress, userAddress);
 
     const { runeBlockNumber, runeTxout, divisibility, publickey: poolPubkey } = poolInfo;
     const pubkeyBuffer = Buffer.from(poolPubkey, "hex");
@@ -292,7 +335,7 @@ export const generateUserBuyBTCPsbt = async (
     });
 
     psbt.addOutput({
-        address: userAddress,
+        address: poolAddress,
         value: STANDARD_RUNE_UTXO_VALUE
     });
 
@@ -373,7 +416,10 @@ export const generateUserBuyBTCPsbt = async (
         message: "PSBT generated successfully",
         payload: {
             psbt: psbt.toHex(),
+            poolInputArray,
             userInputArray,
+            userRuneAmount: tokenSum - requiredAmount,
+            poolRuneAmount: requiredAmount
         },
     };
 };
@@ -381,7 +427,8 @@ export const generateUserBuyBTCPsbt = async (
 export const pushSwapPsbt = async (
     psbt: string,
     userSignedHexedPsbt: string,
-    runeAmount: number,
+    poolRuneAmount: number,
+    userRuneAmount: number,
     btcAmount: number,
     userInputArray: Array<number>,
     poolInputArray: Array<number>,
@@ -447,8 +494,10 @@ export const pushSwapPsbt = async (
                         address: poolAddress
                     },
                     {
-                        runeAmount: poolInfoResult.runeAmount + runeAmount,
+                        runeAmount: poolInfoResult.runeAmount + poolRuneAmount,
                         btcAmount: poolInfoResult.btcAmount - btcAmount,
+                        volume: poolInfoResult.volume + btcAmount,
+                        isLocked: false
                     }
                 )
 
@@ -464,9 +513,11 @@ export const pushSwapPsbt = async (
                 newTxInfo = new TransactionInfoModal({
                     poolAddress: poolAddress,
                     swapType: 1,
+                    vout: 1,
                     txId: txId,
                     btcAmount: btcAmount,
-                    runeAmount: runeAmount
+                    poolRuneAmount: poolRuneAmount,
+                    userRuneAmount: userRuneAmount,
                 })
 
                 await newTxInfo.save()
@@ -479,8 +530,10 @@ export const pushSwapPsbt = async (
                         address: poolAddress
                     },
                     {
-                        runeAmount: poolInfoResult.runeAmount - runeAmount,
+                        runeAmount: poolInfoResult.runeAmount - poolRuneAmount,
                         btcAmount: poolInfoResult.btcAmount + btcAmount,
+                        volume: poolInfoResult.volume + btcAmount,
+                        isLocked: false
                     }
                 )
 
@@ -495,12 +548,12 @@ export const pushSwapPsbt = async (
 
                 newTxInfo = new TransactionInfoModal({
                     poolAddress: poolAddress,
-                    swapList: {
-                        swapType: 2,
-                        txId: txId,
-                        btcAmount: btcAmount,
-                        runeAmount: runeAmount
-                    }
+                    swapType: 2,
+                    txId: txId,
+                    vout: 1,
+                    btcAmount: btcAmount,
+                    poolRuneAmount: poolRuneAmount,
+                    userRuneAmount: userRuneAmount
                 })
 
                 await newTxInfo.save()
@@ -519,14 +572,7 @@ export const pushSwapPsbt = async (
             }
         );
 
-        const newTransaction = new TransactionInfoModal({
-            poolId: poolAddress,
-            txId: txId,
-            vout: 2,
-            runeAmount: runeAmount
-        })
-
-        await newTransaction.save();
+        // socket connection with Front end of price, volume, runeAmount, btcAmount
 
         return {
             success: true,
@@ -540,5 +586,31 @@ export const pushSwapPsbt = async (
             payload: undefined,
         };
     }
+}
 
+export const removeSwapTransaction = async (poolAddress: string, userAddress: string) => {
+    const isPoolAddressExisted = await PoolInfoModal.findOne({
+        address: poolAddress
+    })
+
+    if (!isPoolAddressExisted) {
+        return {
+            success: false,
+            message: `No pool found at address ${poolAddress}`,
+            payload: undefined,
+        };
+    }
+
+    if (isPoolAddressExisted.isLocked && isPoolAddressExisted.lockedByAddress == userAddress) {
+        await PoolInfoModal.findOneAndUpdate(
+            { address: poolAddress },
+            { $set: { isLocked: false } }
+        )
+    }
+
+    return {
+        success: true,
+        message: `Remove swap transaction successfully`,
+        payload: undefined,
+    };
 }
