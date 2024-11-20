@@ -136,17 +136,15 @@ export const updatePoolLockStatus = async (
 export const getPoolSocket = async () => {
   const poolInfo = await PoolInfoModal.find();
 
-  const poolInfoSet = new Set(
-    poolInfo.map(item => {
-      return {
-        poolAddress: item.address,
-        runeId: item.runeId,
-        runeAmount: item.runeAmount,
-        btcAmount: item.btcAmount,
-        createdAt: item.createdAt
-      }
-    })
-  );
+  const poolInfoSet = poolInfo.map(item => {
+    return {
+      poolAddress: item.address,
+      runeId: item.runeId,
+      runeAmount: item.runeAmount,
+      btcAmount: item.btcAmount,
+      createdAt: item.createdAt
+    }
+  });
 
   return poolInfoSet;
 }
@@ -155,17 +153,15 @@ export const getPoolSocket = async () => {
 export const getHistorySocket = async () => {
   const historyInfo = await SwapHistoryModal.find();
 
-  const histofyInfoSet = new Set(
-    historyInfo.map(item => {
-      return {
-        poolName : item.poolAddress,
-        runeAmount : item.runeAmount,
-        btcAmount : item.btcAmount,
-        userAddress: item.userAddress,
-        swapType: item.swapType
-      }
-    })
-  )
+  const histofyInfoSet = historyInfo.map(item => {
+    return {
+      poolName: item.poolAddress,
+      runeAmount: item.runeAmount,
+      btcAmount: item.btcAmount,
+      userAddress: item.userAddress,
+      swapType: item.swapType
+    }
+  });
 
   return histofyInfoSet;
 }

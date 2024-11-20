@@ -1,19 +1,14 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { ECPairFactory } from "ecpair";
-import { none, RuneId, Runestone } from "runelib";
-import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
+import { none, Runestone, RuneId } from "runelib";
 import dotenv from 'dotenv';
-const ecc = require("@bitcoinerlab/secp256k1");
-const ECPair = ECPairFactory(ecc);
 
 import {
     calculateTxFee,
     combinePsbt,
-    delay,
     getBtcUtxoByAddress,
     getFeeRate,
     getRuneUtxoByAddress,
-    pushRawTx
 } from '../service/service';
 import {
     testVersion,
@@ -29,6 +24,8 @@ import {
 import PoolInfoModal from "../model/PoolInfo";
 import TransactionInfoModal from "../model/TransactionInfo";
 
+const ecc = require("@bitcoinerlab/secp256k1");
+const ECPair = ECPairFactory(ecc);
 bitcoin.initEccLib(ecc);
 dotenv.config();
 
@@ -41,8 +38,6 @@ export const generateUserBuyRunePsbt = async (
     userSendBtcAmount: number,
     poolAddress: string
 ) => {
-    console.log('poolAddress :>> ', poolAddress);
-
     const poolInfo = await PoolInfoModal.findOne({ address: poolAddress });
     if (!poolInfo) {
         return {
@@ -55,7 +50,7 @@ export const generateUserBuyRunePsbt = async (
     if (poolInfo.isLocked) {
         return {
             success: false,
-            message: `Pool is locked. you can access ${lockTime}s later`,
+            message: `Pool is locked. you can access ${lockTime}sec later`,
             payload: undefined
         }
     }
@@ -89,6 +84,8 @@ export const generateUserBuyRunePsbt = async (
     let tokenSum = 0;
     const txList = [];
     const usedTxList = [];
+    const runeBlock = Number(runeId.split(":")[0])
+    const runeIdx = Number(runeId.split(":")[1])
 
     // Add pool rune UTXO inputs to PSBT
     for (const runeutxo of poolRuneUtxos.runeUtxos) {
@@ -146,13 +143,13 @@ export const generateUserBuyRunePsbt = async (
     // Add edicts for Rune outputs
 
     edicts.push({
-        id: runeId,
+        id: new RuneId(runeBlock, runeIdx),
         amount: requiredAmount,
         output: 1
     });
 
     edicts.push({
-        id: runeId,
+        id: new RuneId(runeBlock, runeIdx),
         amount: tokenSum - requiredAmount,
         output: 2
     });
@@ -178,12 +175,6 @@ export const generateUserBuyRunePsbt = async (
     // Calculate transaction fee
     const feeRate = testVersion ? testFeeRate : await getFeeRate();
     const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
-
-    console.log('feeRate :>> ', feeRate);
-    console.log('userSendBtcAmount :>> ', typeof (userSendBtcAmount));
-    console.log('calculateTxFee(psbt, feeRate) :>> ', calculateTxFee(psbt, feeRate));
-    console.log('calculateTxFee(psbt, feeRate) :>> ', typeof (calculateTxFee(psbt, feeRate)));
-    console.log('fee :>> ', fee);
 
     // Add BTC UTXOs for covering fees
     let totalBtcAmount = 0;
@@ -278,7 +269,6 @@ export const generateUserBuyBtcPsbt = async (
     await updatePoolLockStatus(poolAddress, userAddress);
 
     const { runeId, divisibility, publickey: poolPubkey } = poolInfo;
-    const pubkeyBuffer = Buffer.from(poolPubkey, "hex");
     const requiredAmount = userSendRuneAmount * 10 ** divisibility;
 
     // Fetch UTXOs
@@ -294,6 +284,8 @@ export const generateUserBuyBtcPsbt = async (
     let cnt = 0;
     let tokenSum = 0;
     const txList = [];
+    const runeBlock = Number(runeId.split(":")[0]);
+    const runeIdx = Number(runeId.split(":")[1]);
 
     // Add pool rune UTXO inputs to PSBT
     for (const runeutxo of userRuneUtxos.runeUtxos) {
@@ -304,9 +296,9 @@ export const generateUserBuyBtcPsbt = async (
             index: runeutxo.vout,
             witnessUtxo: {
                 value: runeutxo.value,
-                script: Buffer.from(runeutxo.scriptpubkey, "hex"),
+                script: Buffer.from(runeutxo.scriptpubkey, "hex").slice(1, 33),
             },
-            tapInternalKey: pubkeyBuffer,
+            tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
         });
 
         userInputArray.push(cnt++);
@@ -324,8 +316,16 @@ export const generateUserBuyBtcPsbt = async (
     }
 
     // Add edicts for Rune outputs
-    edicts.push({ id: runeId, amount: requiredAmount, output: 1 });
-    edicts.push({ id: runeId, amount: tokenSum - requiredAmount, output: 2 });
+    edicts.push({
+        id: new RuneId(runeBlock, runeIdx),
+        amount: requiredAmount,
+        output: 1
+    });
+    edicts.push({
+        id: new RuneId(runeBlock, runeIdx),
+        amount: tokenSum - requiredAmount,
+        output: 2
+    });
 
     // Add Rune outputs to PSBT
     const mintstone = new Runestone(edicts, none(), none(), none());
@@ -357,7 +357,7 @@ export const generateUserBuyBtcPsbt = async (
                 hash: btcutxo.txid,
                 index: btcutxo.vout,
                 witnessUtxo: {
-                    script: Buffer.from(btcutxo.scriptpubkey as string, "hex"),
+                    script: Buffer.from(btcutxo.scriptpubkey as string, "hex").slice(1, 33),
                     value: btcutxo.value,
                 },
                 tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
@@ -462,8 +462,6 @@ export const pushSwapPsbt = async (
 
         userInputArray.forEach((input: number) => userSignedPsbt.finalizeInput(input));
 
-        console.log("psbt ==> ", psbt);
-
         const tempPsbt = bitcoin.Psbt.fromHex(psbt);
 
         const keyPair = ECPair.fromWIF(privateKey, network);
@@ -471,8 +469,6 @@ export const pushSwapPsbt = async (
         poolInputArray.map((input: number) => {
             tempPsbt.signInput(input, keyPair);
         })
-
-        console.log('tempPsbt :>> ', tempPsbt);
 
         poolInputArray.forEach((input: number) => tempPsbt.finalizeInput(input));
 
@@ -512,7 +508,6 @@ export const pushSwapPsbt = async (
                     )
 
                     if (!updatedPoolInfo) {
-                        console.log("User not found");
                         return {
                             success: false,
                             message: `No pool found at address ${poolAddress}`,
@@ -549,7 +544,6 @@ export const pushSwapPsbt = async (
                     )
 
                     if (!updatedPoolInfo) {
-                        console.log("User not found");
                         return {
                             success: false,
                             message: `No pool found at address ${poolAddress}`,
