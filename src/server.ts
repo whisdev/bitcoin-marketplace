@@ -38,7 +38,7 @@ const server = http.createServer(app);
 app.use(cors())
 
 // Socket.io
-const io = new Server(server, { cors: { origin: "*" } });
+export const io = new Server(server, { cors: { origin: "*" } });
 // End Socket
 
 io.on("connection", (socket) => {

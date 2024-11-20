@@ -18,6 +18,8 @@ export const getPullInfo = async () => {
         runeId: item.runeId,
         runeAmount: item.runeAmount,
         btcAmount: item.btcAmount,
+        ticker: item.ticker,
+        tokenType: item.tokenType,
         createdAt: item.createdAt
       }
     }
