@@ -1,8 +1,9 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { ECPairFactory } from "ecpair";
 import { none, RuneId, Runestone } from "runelib";
-import { LEAF_VERSION_TAPSCRIPT } from "bitcoinjs-lib/src/payments/bip341";
 import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
+const ecc = require("@bitcoinerlab/secp256k1");
+const ECPair = ECPairFactory(ecc);
 
 import {
     calculateTxFee,
@@ -14,13 +15,7 @@ import {
     pushRawTx
 } from '../service/service';
 import {
-    userRuneId,
     testVersion,
-    sendingRate,
-    // feelimit,
-    adminVout1,
-    adminVout2,
-    // userDivisibility,
     testFeeRate,
     STANDARD_RUNE_UTXO_VALUE,
     SEND_UTXO_FEE_LIMIT,
@@ -29,9 +24,6 @@ import dotenv from 'dotenv';
 import PoolInfoModal from "../model/PoolInfo";
 import { filterTransactionInfo } from "../utils/util";
 import TransactionInfoModal from "../model/TransactionInfo";
-
-const ecc = require("@bitcoinerlab/secp256k1");
-const ECPair = ECPairFactory(ecc);
 
 bitcoin.initEccLib(ecc);
 dotenv.config();
@@ -59,7 +51,7 @@ export const generateUserBuyRunePsbt = async (
     }
 
     const { runeBlockNumber, runeTxout, divisibility, publickey: poolPubkey } = poolInfo;
-    const pubkeyBuffer = Buffer.from(poolPubkey, "hex");
+    const pubkeyBuffer = Buffer.from(poolPubkey, "hex").slice(1, 33);
     const requiredAmount = userBuyRuneAmount * 10 ** divisibility;
 
     // Fetch UTXOs
@@ -160,6 +152,12 @@ export const generateUserBuyRunePsbt = async (
     // Calculate transaction fee
     const feeRate = testVersion ? testFeeRate : await getFeeRate();
     const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
+
+    console.log('feeRate :>> ', feeRate);
+    console.log('userSendBtcAmount :>> ', typeof (userSendBtcAmount));
+    console.log('calculateTxFee(psbt, feeRate) :>> ', calculateTxFee(psbt, feeRate));
+    console.log('calculateTxFee(psbt, feeRate) :>> ', typeof (calculateTxFee(psbt, feeRate)));
+    console.log('fee :>> ', fee);
 
     // Add BTC UTXOs for covering fees
     let totalBtcAmount = 0;
@@ -383,17 +381,19 @@ export const generateUserBuyBTCPsbt = async (
 export const pushSwapPsbt = async (
     psbt: string,
     userSignedHexedPsbt: string,
+    runeAmount: number,
+    btcAmount: number,
     userInputArray: Array<number>,
     poolInputArray: Array<number>,
     poolAddress: string,
-    amount: number,
-    usedTransactionList: string[]
+    usedTransactionList: string[],
+    swapType: number
 ) => {
-    const isPoolAdressExisted = await PoolInfoModal.findOne({
+    const isPoolAddressExisted = await PoolInfoModal.findOne({
         address: poolAddress
     })
 
-    if (!isPoolAdressExisted) {
+    if (!isPoolAddressExisted) {
         return {
             success: false,
             message: `No pool found at address ${poolAddress}`,
@@ -419,19 +419,111 @@ export const pushSwapPsbt = async (
 
     poolInputArray.forEach((input: number) => tempPsbt.finalizeInput(input));
 
+    // broadcast tx
     const txId = await combinePsbt(psbt, tempPsbt.toHex(), userSignedPsbt.toHex());
 
+    // db features
     if (txId) {
-        const result = await TransactionInfoModal.deleteMany({
-            poolId: poolAddress,
-            txId: { $in: usedTransactionList }
-        });
+        const poolInfoResult = await PoolInfoModal.findOne({
+            address: poolAddress
+        })
+
+        if (!poolInfoResult) {
+            return {
+                success: false,
+                message: `No pool found at address ${poolAddress}`,
+                payload: undefined
+            }
+        }
+
+        let updatedPoolInfo: any;
+        let newTxInfo: any;
+
+        switch (swapType) {
+            // user buy btc and sell rune
+            case 1:
+                updatedPoolInfo = await PoolInfoModal.findOneAndUpdate(
+                    {
+                        address: poolAddress
+                    },
+                    {
+                        runeAmount: poolInfoResult.runeAmount + runeAmount,
+                        btcAmount: poolInfoResult.btcAmount - btcAmount,
+                    }
+                )
+
+                if (!updatedPoolInfo) {
+                    console.log("User not found");
+                    return {
+                        success: false,
+                        message: `No pool found at address ${poolAddress}`,
+                        payload: undefined
+                    };
+                }
+
+                newTxInfo = new TransactionInfoModal({
+                    poolAddress: poolAddress,
+                    swapType: 1,
+                    txId: txId,
+                    btcAmount: btcAmount,
+                    runeAmount: runeAmount
+                })
+
+                await newTxInfo.save()
+                break;
+
+            // user buy rune and receive btc
+            case 2:
+                updatedPoolInfo = await PoolInfoModal.findOneAndUpdate(
+                    {
+                        address: poolAddress
+                    },
+                    {
+                        runeAmount: poolInfoResult.runeAmount - runeAmount,
+                        btcAmount: poolInfoResult.btcAmount + btcAmount,
+                    }
+                )
+
+                if (!updatedPoolInfo) {
+                    console.log("User not found");
+                    return {
+                        success: false,
+                        message: `No pool found at address ${poolAddress}`,
+                        payload: undefined
+                    };
+                }
+
+                newTxInfo = new TransactionInfoModal({
+                    poolAddress: poolAddress,
+                    swapList: {
+                        swapType: 2,
+                        txId: txId,
+                        btcAmount: btcAmount,
+                        runeAmount: runeAmount
+                    }
+                })
+
+                await newTxInfo.save()
+                break;
+        }
+
+        const transactionInfoResult = await TransactionInfoModal.updateMany(
+            {
+                poolAddress: poolAddress,
+                txId: { $in: usedTransactionList }
+            },
+            {
+                $set: {
+                    isUsed: true
+                }
+            }
+        );
 
         const newTransaction = new TransactionInfoModal({
             poolId: poolAddress,
             txId: txId,
             vout: 2,
-            runeAmount: amount
+            runeAmount: runeAmount
         })
 
         await newTransaction.save();

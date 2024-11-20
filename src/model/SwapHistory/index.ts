@@ -1,13 +1,12 @@
 import mongoose from "mongoose";
 
 const SwapHistory = new mongoose.Schema({
-    address: { type: String, required: true },
-    swapList: [
-        {
-            swapType: { type: Number, required: true }, // 1 : rune -> btc, 2: btc -> rune,
-            txId: { type: String, required: false }
-        }
-    ],
+    poolAddress: { type: String, required: true },
+    txId: { type: String, required: true },
+    vout: { type: Number, required: true },
+    runeAmount: { type: Number, required: true },
+    btcAmount: { type: Number, required: true },
+    swapType: { type: Number, required: true },
     createdAt: { type: Date, default: new Date() },
 });
 

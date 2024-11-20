@@ -8,10 +8,10 @@ import {
     generateUserBuyBTCPsbt,
     pushSwapPsbt,
 } from '../controller/marketplaceController';
-import { 
+import {
     testVersion,
     privateKey
- } from "../config/config";
+} from "../config/config";
 import { LocalWallet } from "../service/localWallet";
 
 const marketplaceRouter = Router();
@@ -53,9 +53,9 @@ marketplaceRouter.post('/generateUserBuyRunePsbt', async (req, res, next) => {
 // sign and broadcast tx on Server side
 marketplaceRouter.post('/pushPsbt', async (req, res, next) => {
     try {
-        const { psbt, userSignedHexedPsbt, amount, userInputArray, poolInputArray, adminAddress, usedTransactionList } = req.body;
+        const { psbt, userSignedHexedPsbt, runeAmount, btcAmount, userInputArray, poolInputArray, poolAddress, usedTransactionList, swapType } = req.body;
 
-        const payload = await pushSwapPsbt(psbt, userSignedHexedPsbt, userInputArray, poolInputArray, adminAddress, amount, usedTransactionList);
+        const payload = await pushSwapPsbt(psbt, userSignedHexedPsbt, runeAmount, btcAmount, userInputArray, poolInputArray, poolAddress, usedTransactionList, swapType);
 
         return res.status(200).send(payload);
     } catch (error) {

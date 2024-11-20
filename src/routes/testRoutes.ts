@@ -1,13 +1,10 @@
 import { Router } from 'express';
 import * as bitcoin from 'bitcoinjs-lib'
-import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
-import { LEAF_VERSION_TAPSCRIPT } from 'bitcoinjs-lib/src/payments/bip341';
 
-import { pushRawTx, finalizePsbtInput, combinePsbt, getDummyFee, pushBTCpmt, generateSeed } from '../service/service';
-import { networkType, redeemAddress, SPLIT_ADDRESS_SIZE, testVersion, userRuneId, privateKey } from "../config/config";
+import { pushRawTx, getDummyFee, generateSeed } from '../service/service';
+import { testVersion, privateKey } from "../config/config";
 import { LocalWallet } from "../service/localWallet";
 import { generateUserBuyRunePsbt, pushSwapPsbt } from '../controller/testController';
-import { ITreeItem } from '../utils/type';
 
 export const adminWallet = new LocalWallet(privateKey as string, testVersion ? 1 : 0);
 
@@ -102,12 +99,12 @@ testRouter.post('/generateUserBuyRunePsbt', async (req, res, next) => {
     try {
         // const { userPubkey, userAddress, userBuyRuneAmount, userSendingBtcAmount, poolAddress } = req.body;
 
-        const userPubkey = "03df2729c89fb4d69592abc692ce8d900df7704b73bfe597a9b5ec89159266c763";
-        const userAddress = "tb1p2vw4xepu6glhrtt62m7pjs2exmvmesytmsmc4zce8tym9elfyxnq6506a5";
+        const userPubkey = "02c60809fa6be1eca0feae1c5546dbcc795c46e63d64cc629646e02cead7e5db3e";
+        const userAddress = "tb1pw7dtq290mkjq36q3yv5h2s3wz79k2696zftd0ctsydruwjxktlrs8x8cmh";
         const userBuyRuneAmount = 10;
         const userSendingBtcAmount = 0.01;
-        const poolAddress = "tb1pw7dtq290mkjq36q3yv5h2s3wz79k2696zftd0ctsydruwjxktlrs8x8cmh";
-        const poolPubkey = "02c60809fa6be1eca0feae1c5546dbcc795c46e63d64cc629646e02cead7e5db3e"
+        const poolAddress = "tb1p2vw4xepu6glhrtt62m7pjs2exmvmesytmsmc4zce8tym9elfyxnq6506a5";
+        const poolPubkey = "03df2729c89fb4d69592abc692ce8d900df7704b73bfe597a9b5ec89159266c763"
 
         const payload = await generateUserBuyRunePsbt(userPubkey, userAddress, userBuyRuneAmount, userSendingBtcAmount, poolAddress, poolPubkey);
 

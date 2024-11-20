@@ -13,13 +13,8 @@ import {
     pushRawTx
 } from '../service/service';
 import {
-    userRuneId,
     testVersion,
-    sendingRate,
-    feelimit,
-    userDivisibility,
     testFeeRate,
-    SPLIT_ADDRESS_SIZE,
     STANDARD_RUNE_UTXO_VALUE,
     SEND_UTXO_FEE_LIMIT,
     privateKey,
@@ -33,7 +28,6 @@ const ECPair = ECPairFactory(ecc);
 
 const network = testVersion ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
 
-console.log('privateKey :>> ', privateKey);
 const poolWallet = new LocalWallet(privateKey as string, testVersion ? 1 : 0);
 
 export const generateUserBuyRunePsbt = async (
