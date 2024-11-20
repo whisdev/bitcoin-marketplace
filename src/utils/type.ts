@@ -43,6 +43,15 @@ export interface IUtxo {
     divisibility?: number
 }
 
+export interface IRuneBalance {
+    rune: string;
+    runeid: string;
+    spacedRune: string;
+    amount: number;
+    symbol: string;
+    divisibility: number
+}
+
 export interface IRuneUtxo {
     txid: string;
     vout: number;

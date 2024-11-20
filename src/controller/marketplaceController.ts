@@ -55,7 +55,7 @@ export const generateUserBuyRunePsbt = async (
     if (poolInfo.isLocked) {
         return {
             success: false,
-            message: `Pool is locked. you can access 15s later`,
+            message: `Pool is locked. you can access ${lockTime}s later`,
             payload: undefined
         }
     }
@@ -261,7 +261,7 @@ export const generateUserBuyBtcPsbt = async (
     if (poolInfo.isLocked) {
         return {
             success: false,
-            message: `Pool is locked. you can access 15s later`,
+            message: `Pool is locked. you can access ${lockTime}s later`,
             payload: undefined
         }
     }

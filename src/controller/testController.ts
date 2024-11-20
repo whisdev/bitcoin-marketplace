@@ -5,7 +5,6 @@ import {
     calculateTxFee,
     combinePsbt,
     delay,
-    generateSeed,
     getBtcUtxoByAddress,
     getFeeRate,
     getRuneUtxoByAddress,

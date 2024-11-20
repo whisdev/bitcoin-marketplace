@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as bitcoin from 'bitcoinjs-lib'
 
-import { pushRawTx, getDummyFee, generateSeed } from '../service/service';
+import { pushRawTx,  } from '../service/service';
 import { testVersion, privateKey } from "../config/config";
 import { LocalWallet } from "../service/localWallet";
 import { generateUserBuyRunePsbt, pushSwapPsbt } from '../controller/testController';
@@ -21,28 +21,6 @@ testRouter.get('/test', async (req, res, next) => {
         res.status(200).send("test successfully");
     } catch (error) {
         res.status(404).send(error);
-    }
-})
-
-testRouter.post('/getFee', async (req, res, next) => {
-    try {
-        const { amount } = req.body;
-
-        const fee = await getDummyFee(amount);
-
-        return res.status(200).send({ fee: fee });
-    } catch (error) {
-
-    }
-})
-
-testRouter.post('/generateSeed', async (req, res, next) => {
-    try {
-        const newSeed = await generateSeed();
-
-        res.status(200).send(newSeed);
-    } catch (error) {
-
     }
 })
 

@@ -8,7 +8,6 @@ import {
     pushSwapPsbt,
     removeSwapTransaction,
 } from '../controller/marketplaceController';
-import { flagList } from '../server';
 
 const marketplaceRouter = Router();
 

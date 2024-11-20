@@ -5,13 +5,15 @@ import path from 'path';
 import http from 'http';
 import { Server } from 'socket.io';
 
-import testRouter from './routes/testRoutes';
-import marketplaceRouter from './routes/marketplaceRoutes';
-import poolRouter from './routes/poolRoutes';
-
 import { connectMongoDB } from './utils/db';
 import { MongoDBUrl } from './config/config';
 import { checkConfirmedTx } from './utils/util';
+
+import marketplaceRouter from './routes/marketplaceRoutes';
+import poolRouter from './routes/poolRoutes';
+import userRouter from './routes/userRoutes';
+import testRouter from './routes/testRoutes';
+
 
 const PORT = process.env.PORT || 5000;
 
@@ -38,15 +40,6 @@ app.use(cors())
 // Socket.io
 const io = new Server(server, { cors: { origin: "*" } });
 // End Socket
-
-export const flagList = [
-  {poolAddress: "tb1pw7dtq290mkjq36q3yv5h2s3wz79k2696zftd0ctsydruwjxktlrs8x8cmh", lockStatus: true},
-  {poolAddress: "tb1p2vw4xepu6glhrtt62m7pjs2exmvmesytmsmc4zce8tym9elfyxnq6506a5", lockStatus: true},
-  {poolAddress: "", lockStatus: true},
-  {poolAddress: "", lockStatus: false},
-  {poolAddress: "", lockStatus: false},
-  {poolAddress: "", lockStatus: false},
-]
 
 io.on("connection", (socket) => {
   console.log("socket connected");
@@ -122,6 +115,7 @@ checkConfirmedTx();
 
 app.use('/api/marketplace', marketplaceRouter);
 app.use('/api/pool', poolRouter);
+app.use('/api/user', userRouter);
 app.use('/api/test', testRouter);
 
 app.listen(PORT, () => {
