@@ -3,6 +3,7 @@ import axios from "axios";
 
 import TransactionInfoModal from "../model/TransactionInfo";
 import {
+  lockTime,
   testVersion
 } from "../config/config";
 import SwapHistoryModal from "../model/SwapHistory";
@@ -118,12 +119,17 @@ export const updatePoolLockStatus = async (
     address: poolAddress
   })
 
+  console.log("updatePoolLockStatus");
+  console.log('poolInfoResult?.isLocked && poolInfoResult.lockedByAddress == userAddress :>> ', poolInfoResult?.isLocked);
+  console.log(' poolInfoResult.lockedByAddress == userAddress :>> ', poolInfoResult?.lockedByAddress == userAddress);
   setTimeout(async () => {
     if (poolInfoResult?.isLocked && poolInfoResult.lockedByAddress == userAddress) {
+      console.log("updatePoolLockStatus");
       await PoolInfoModal.findOneAndUpdate(
         { address: poolAddress },
         { $set: { isLocked: false } }
       )
     }
-  }, 15000);
+    console.log("updatePoolLockStatus");
+  }, lockTime * 10 ** 3);
 }

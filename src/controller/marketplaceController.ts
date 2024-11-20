@@ -2,6 +2,7 @@ import * as bitcoin from "bitcoinjs-lib";
 import { ECPairFactory } from "ecpair";
 import { none, RuneId, Runestone } from "runelib";
 import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
+import dotenv from 'dotenv';
 const ecc = require("@bitcoinerlab/secp256k1");
 const ECPair = ECPairFactory(ecc);
 
@@ -19,18 +20,19 @@ import {
     testFeeRate,
     STANDARD_RUNE_UTXO_VALUE,
     SEND_UTXO_FEE_LIMIT,
+    lockTime,
 } from '../config/config';
-import dotenv from 'dotenv';
+import {
+    filterTransactionInfo,
+    updatePoolLockStatus
+} from "../utils/util";
 import PoolInfoModal from "../model/PoolInfo";
-import { filterTransactionInfo, updatePoolLockStatus } from "../utils/util";
 import TransactionInfoModal from "../model/TransactionInfo";
 
 bitcoin.initEccLib(ecc);
 dotenv.config();
 
 const network = testVersion ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
-
-const privateKey: string = process.env.WIF_KEY as string;
 
 export const generateUserBuyRunePsbt = async (
     userPubkey: string,
@@ -50,24 +52,25 @@ export const generateUserBuyRunePsbt = async (
         };
     }
 
-    // if (poolInfo.isLocked) {
-    //     return {
-    //         success: false,
-    //         message: `Pool is locked. you can access 15s later`,
-    //         payload: undefined
-    //     }
-    // }
+    if (poolInfo.isLocked) {
+        return {
+            success: false,
+            message: `Pool is locked. you can access 15s later`,
+            payload: undefined
+        }
+    }
 
     const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
         { address: poolAddress },
-        { $set: { isLocked: true } }
+        {
+            $set: {
+                isLocked: true,
+                lockedByAddress: userAddress
+            }
+        }
     )
 
     await updatePoolLockStatus(poolAddress, userAddress);
-
-    setTimeout(() => {
-        
-    }, 15000);
 
     const { runeBlockNumber, runeTxout, divisibility, publickey: poolPubkey } = poolInfo;
     const pubkeyBuffer = Buffer.from(poolPubkey, "hex").slice(1, 33);
@@ -265,7 +268,12 @@ export const generateUserBuyBtcPsbt = async (
 
     const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
         { address: poolAddress },
-        { $set: { isLocked: true } }
+        {
+            $set: {
+                isLocked: true,
+                lockedByAddress: userAddress
+            }
+        }
     )
 
     await updatePoolLockStatus(poolAddress, userAddress);
@@ -432,6 +440,7 @@ export const pushSwapPsbt = async (
     btcAmount: number,
     userInputArray: Array<number>,
     poolInputArray: Array<number>,
+    userAddress: string,
     poolAddress: string,
     usedTransactionList: string[],
     swapType: number
@@ -448,141 +457,151 @@ export const pushSwapPsbt = async (
         };
     }
 
-    const userSignedPsbt = bitcoin.Psbt.fromHex(userSignedHexedPsbt);
+    if (isPoolAddressExisted.isLocked && isPoolAddressExisted.lockedByAddress == userAddress) {
+        const privateKey = isPoolAddressExisted.privatekey
 
-    userInputArray.forEach((input: number) => userSignedPsbt.finalizeInput(input));
+        const userSignedPsbt = bitcoin.Psbt.fromHex(userSignedHexedPsbt);
 
-    console.log("psbt ==> ", psbt);
+        userInputArray.forEach((input: number) => userSignedPsbt.finalizeInput(input));
 
-    const tempPsbt = bitcoin.Psbt.fromHex(psbt);
+        console.log("psbt ==> ", psbt);
 
-    const keyPair = ECPair.fromWIF(privateKey, network);
+        const tempPsbt = bitcoin.Psbt.fromHex(psbt);
 
-    poolInputArray.map((input: number) => {
-        tempPsbt.signInput(input, keyPair);
-    })
+        const keyPair = ECPair.fromWIF(privateKey, network);
 
-    console.log('tempPsbt :>> ', tempPsbt);
-
-    poolInputArray.forEach((input: number) => tempPsbt.finalizeInput(input));
-
-    // broadcast tx
-    const txId = await combinePsbt(psbt, tempPsbt.toHex(), userSignedPsbt.toHex());
-
-    // db features
-    if (txId) {
-        const poolInfoResult = await PoolInfoModal.findOne({
-            address: poolAddress
+        poolInputArray.map((input: number) => {
+            tempPsbt.signInput(input, keyPair);
         })
 
-        if (!poolInfoResult) {
+        console.log('tempPsbt :>> ', tempPsbt);
+
+        poolInputArray.forEach((input: number) => tempPsbt.finalizeInput(input));
+
+        // broadcast tx
+        const txId = await combinePsbt(psbt, tempPsbt.toHex(), userSignedPsbt.toHex());
+
+        // db features
+        if (txId) {
+            const poolInfoResult = await PoolInfoModal.findOne({
+                address: poolAddress
+            })
+
+            if (!poolInfoResult) {
+                return {
+                    success: false,
+                    message: `No pool found at address ${poolAddress}`,
+                    payload: undefined
+                }
+            }
+
+            let updatedPoolInfo: any;
+            let newTxInfo: any;
+
+            switch (swapType) {
+                // user buy btc and sell rune
+                case 1:
+                    updatedPoolInfo = await PoolInfoModal.findOneAndUpdate(
+                        {
+                            address: poolAddress
+                        },
+                        {
+                            runeAmount: poolInfoResult.runeAmount + poolRuneAmount,
+                            btcAmount: poolInfoResult.btcAmount - btcAmount,
+                            volume: poolInfoResult.volume + btcAmount,
+                            isLocked: false
+                        }
+                    )
+
+                    if (!updatedPoolInfo) {
+                        console.log("User not found");
+                        return {
+                            success: false,
+                            message: `No pool found at address ${poolAddress}`,
+                            payload: undefined
+                        };
+                    }
+
+                    newTxInfo = new TransactionInfoModal({
+                        poolAddress: poolAddress,
+                        swapType: 1,
+                        vout: 1,
+                        txId: txId,
+                        btcAmount: btcAmount,
+                        poolRuneAmount: poolRuneAmount,
+                        userRuneAmount: userRuneAmount,
+                    })
+
+                    await newTxInfo.save()
+                    break;
+
+                // user buy rune and receive btc
+                case 2:
+                    updatedPoolInfo = await PoolInfoModal.findOneAndUpdate(
+                        {
+                            address: poolAddress
+                        },
+                        {
+                            runeAmount: poolInfoResult.runeAmount - poolRuneAmount,
+                            btcAmount: poolInfoResult.btcAmount + btcAmount,
+                            volume: poolInfoResult.volume + btcAmount,
+                            isLocked: false
+                        }
+                    )
+
+                    if (!updatedPoolInfo) {
+                        console.log("User not found");
+                        return {
+                            success: false,
+                            message: `No pool found at address ${poolAddress}`,
+                            payload: undefined
+                        };
+                    }
+
+                    newTxInfo = new TransactionInfoModal({
+                        poolAddress: poolAddress,
+                        swapType: 2,
+                        txId: txId,
+                        vout: 1,
+                        btcAmount: btcAmount,
+                        poolRuneAmount: poolRuneAmount,
+                        userRuneAmount: userRuneAmount
+                    })
+
+                    await newTxInfo.save()
+                    break;
+            }
+
+            const transactionInfoResult = await TransactionInfoModal.updateMany(
+                {
+                    poolAddress: poolAddress,
+                    txId: { $in: usedTransactionList }
+                },
+                {
+                    $set: {
+                        isUsed: true
+                    }
+                }
+            );
+
+            // socket connection with Front end of price, volume, runeAmount, btcAmount
+
+            return {
+                success: true,
+                message: `Push swap psbt successfully`,
+                payload: txId,
+            };
+        } else {
             return {
                 success: false,
                 message: `No pool found at address ${poolAddress}`,
                 payload: undefined
-            }
+            };
         }
-
-        let updatedPoolInfo: any;
-        let newTxInfo: any;
-
-        switch (swapType) {
-            // user buy btc and sell rune
-            case 1:
-                updatedPoolInfo = await PoolInfoModal.findOneAndUpdate(
-                    {
-                        address: poolAddress
-                    },
-                    {
-                        runeAmount: poolInfoResult.runeAmount + poolRuneAmount,
-                        btcAmount: poolInfoResult.btcAmount - btcAmount,
-                        volume: poolInfoResult.volume + btcAmount,
-                        isLocked: false
-                    }
-                )
-
-                if (!updatedPoolInfo) {
-                    console.log("User not found");
-                    return {
-                        success: false,
-                        message: `No pool found at address ${poolAddress}`,
-                        payload: undefined
-                    };
-                }
-
-                newTxInfo = new TransactionInfoModal({
-                    poolAddress: poolAddress,
-                    swapType: 1,
-                    vout: 1,
-                    txId: txId,
-                    btcAmount: btcAmount,
-                    poolRuneAmount: poolRuneAmount,
-                    userRuneAmount: userRuneAmount,
-                })
-
-                await newTxInfo.save()
-                break;
-
-            // user buy rune and receive btc
-            case 2:
-                updatedPoolInfo = await PoolInfoModal.findOneAndUpdate(
-                    {
-                        address: poolAddress
-                    },
-                    {
-                        runeAmount: poolInfoResult.runeAmount - poolRuneAmount,
-                        btcAmount: poolInfoResult.btcAmount + btcAmount,
-                        volume: poolInfoResult.volume + btcAmount,
-                        isLocked: false
-                    }
-                )
-
-                if (!updatedPoolInfo) {
-                    console.log("User not found");
-                    return {
-                        success: false,
-                        message: `No pool found at address ${poolAddress}`,
-                        payload: undefined
-                    };
-                }
-
-                newTxInfo = new TransactionInfoModal({
-                    poolAddress: poolAddress,
-                    swapType: 2,
-                    txId: txId,
-                    vout: 1,
-                    btcAmount: btcAmount,
-                    poolRuneAmount: poolRuneAmount,
-                    userRuneAmount: userRuneAmount
-                })
-
-                await newTxInfo.save()
-                break;
-        }
-
-        const transactionInfoResult = await TransactionInfoModal.updateMany(
-            {
-                poolAddress: poolAddress,
-                txId: { $in: usedTransactionList }
-            },
-            {
-                $set: {
-                    isUsed: true
-                }
-            }
-        );
-
-        // socket connection with Front end of price, volume, runeAmount, btcAmount
-
-        return {
-            success: true,
-            message: `Push swap psbt successfully`,
-            payload: txId,
-        };
     } else {
         return {
             success: false,
-            message: `Push swap psbt failed`,
+            message: `This user keep signing over ${lockTime} sec`,
             payload: undefined,
         };
     }

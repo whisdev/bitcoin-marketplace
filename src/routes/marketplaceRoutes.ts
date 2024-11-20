@@ -49,9 +49,9 @@ marketplaceRouter.post('/generateUserBuyBtcPsbt', async (req, res, next) => {
 // sign and broadcast tx on Server side
 marketplaceRouter.post('/pushPsbt', async (req, res, next) => {
     try {
-        const { psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, btcAmount, userInputArray, poolInputArray, poolAddress, usedTransactionList, swapType } = req.body;
+        const { psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, btcAmount, userInputArray, poolInputArray, userAddress, poolAddress, usedTransactionList, swapType } = req.body;
 
-        const payload = await pushSwapPsbt(psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, btcAmount, userInputArray, poolInputArray, poolAddress, usedTransactionList, swapType);
+        const payload = await pushSwapPsbt(psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, btcAmount, userInputArray, poolInputArray, userAddress, poolAddress, usedTransactionList, swapType);
 
         return res.status(200).send(payload);
     } catch (error) {
