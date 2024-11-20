@@ -14,7 +14,7 @@ export const getUserRuneInfo = async (userAddress: string) => {
     const poolInfoResult = await PoolInfoModal.find();
 
     const poolRuneInfoSet = new Set(
-        poolInfoResult.map(item => `${item.runeBlockNumber}:${item.runeTxout}`)
+        poolInfoResult.map(item => `${item.runeId}`)
     );
 
     const addressRuneBalance = await getRuneBalanceListByAddress(userAddress);
@@ -33,6 +33,9 @@ export const getUserRuneInfo = async (userAddress: string) => {
         })
     ).then(results => results.flat());
 
-    return userRuneUtxoInfo;
-
+    return {
+        success: true,
+        message: "get user rune info successfully",
+        payload: userRuneUtxoInfo,
+    };
 }

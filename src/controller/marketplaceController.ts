@@ -72,13 +72,13 @@ export const generateUserBuyRunePsbt = async (
 
     await updatePoolLockStatus(poolAddress, userAddress);
 
-    const { runeBlockNumber, runeTxout, divisibility, publickey: poolPubkey } = poolInfo;
+    const { divisibility, publickey: poolPubkey, runeId } = poolInfo;
     const pubkeyBuffer = Buffer.from(poolPubkey, "hex").slice(1, 33);
     const requiredAmount = userBuyRuneAmount * 10 ** divisibility;
 
     // Fetch UTXOs
     const userBtcUtxos = await getBtcUtxoByAddress(userAddress);
-    const poolRuneUtxos = await getRuneUtxoByAddress(poolAddress, `${runeBlockNumber}:${runeTxout}`);
+    const poolRuneUtxos = await getRuneUtxoByAddress(poolAddress, runeId);
 
     // Prepare PSBT and initialize values
     const psbt = new bitcoin.Psbt({ network });
@@ -144,7 +144,6 @@ export const generateUserBuyRunePsbt = async (
     }
 
     // Add edicts for Rune outputs
-    const runeId = new RuneId(runeBlockNumber, runeTxout);
 
     edicts.push({
         id: runeId,
@@ -278,14 +277,14 @@ export const generateUserBuyBtcPsbt = async (
 
     await updatePoolLockStatus(poolAddress, userAddress);
 
-    const { runeBlockNumber, runeTxout, divisibility, publickey: poolPubkey } = poolInfo;
+    const { runeId, divisibility, publickey: poolPubkey } = poolInfo;
     const pubkeyBuffer = Buffer.from(poolPubkey, "hex");
     const requiredAmount = userSendRuneAmount * 10 ** divisibility;
 
     // Fetch UTXOs
     const poolBtcUtxos = await getBtcUtxoByAddress(poolAddress);
     const userBtcUtxos = await getBtcUtxoByAddress(userAddress);
-    const userRuneUtxos = await getRuneUtxoByAddress(userAddress, `${runeBlockNumber}:${runeTxout}`);
+    const userRuneUtxos = await getRuneUtxoByAddress(userAddress, runeId);
 
     // Prepare PSBT and initialize values
     const psbt = new bitcoin.Psbt({ network });
@@ -325,7 +324,6 @@ export const generateUserBuyBtcPsbt = async (
     }
 
     // Add edicts for Rune outputs
-    const runeId = new RuneId(runeBlockNumber, runeTxout);
     edicts.push({ id: runeId, amount: requiredAmount, output: 1 });
     edicts.push({ id: runeId, amount: tokenSum - requiredAmount, output: 2 });
 
@@ -524,6 +522,7 @@ export const pushSwapPsbt = async (
 
                     newTxInfo = new TransactionInfoModal({
                         poolAddress: poolAddress,
+                        userAddress: userAddress,
                         swapType: 1,
                         vout: 1,
                         txId: txId,
@@ -560,6 +559,7 @@ export const pushSwapPsbt = async (
 
                     newTxInfo = new TransactionInfoModal({
                         poolAddress: poolAddress,
+                        userAddress: userAddress,
                         swapType: 2,
                         txId: txId,
                         vout: 1,

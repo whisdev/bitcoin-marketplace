@@ -94,6 +94,7 @@ export const checkConfirmedTx = async () => {
               runeAmount: unconfirmedTx.poolRuneAmount,
               btcAmount: unconfirmedTx.btcAmount,
               swapType: unconfirmedTx.swapType,
+              userAddress: unconfirmedTx.userAddress
             })
 
             await newSwapHistory.save();
@@ -119,9 +120,6 @@ export const updatePoolLockStatus = async (
     address: poolAddress
   })
 
-  console.log("updatePoolLockStatus");
-  console.log('poolInfoResult?.isLocked && poolInfoResult.lockedByAddress == userAddress :>> ', poolInfoResult?.isLocked);
-  console.log(' poolInfoResult.lockedByAddress == userAddress :>> ', poolInfoResult?.lockedByAddress == userAddress);
   setTimeout(async () => {
     if (poolInfoResult?.isLocked && poolInfoResult.lockedByAddress == userAddress) {
       console.log("updatePoolLockStatus");
@@ -132,4 +130,42 @@ export const updatePoolLockStatus = async (
     }
     console.log("updatePoolLockStatus");
   }, lockTime * 10 ** 3);
+}
+
+// socket about pool info
+export const getPoolSocket = async () => {
+  const poolInfo = await PoolInfoModal.find();
+
+  const poolInfoSet = new Set(
+    poolInfo.map(item => {
+      return {
+        poolAddress: item.address,
+        runeId: item.runeId,
+        runeAmount: item.runeAmount,
+        btcAmount: item.btcAmount,
+        createdAt: item.createdAt
+      }
+    })
+  );
+
+  return poolInfoSet;
+}
+
+// socket about tx info
+export const getHistorySocket = async () => {
+  const historyInfo = await SwapHistoryModal.find();
+
+  const histofyInfoSet = new Set(
+    historyInfo.map(item => {
+      return {
+        poolName : item.poolAddress,
+        runeAmount : item.runeAmount,
+        btcAmount : item.btcAmount,
+        userAddress: item.userAddress,
+        swapType: item.swapType
+      }
+    })
+  )
+
+  return histofyInfoSet;
 }

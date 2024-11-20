@@ -12,10 +12,22 @@ export const getPullInfo = async () => {
     const poolInfo = await PoolInfoModal.find();
 
     if (poolInfo) {
+        const poolInfoSet = new Set(
+            poolInfo.map(item => {
+              return {
+                poolAddress: item.address,
+                runeId: item.runeId,
+                runeAmount: item.runeAmount,
+                btcAmount: item.btcAmount,
+                createdAt: item.createdAt
+              }
+            })
+          );
+
         return {
             success: true,
             message: "Fetch All Info",
-            payload: poolInfo,
+            payload: poolInfoSet,
         };
     } else {
         return {
