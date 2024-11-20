@@ -11,7 +11,7 @@ userRouter.use(async (req, res, next) => {
 })
 
 // get all pool info
-userRouter.post('/getRuneInfo', async (req, res, next) => {
+userRouter.post('/getUserRuneInfo', async (req, res, next) => {
     try {
         const { userAddress } = req.body;
         const payload = await getUserRuneInfo(userAddress);

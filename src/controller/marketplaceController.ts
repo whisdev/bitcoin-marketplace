@@ -19,10 +19,12 @@ import {
 } from '../config/config';
 import {
     filterTransactionInfo,
+    getPoolSocket,
     updatePoolLockStatus
 } from "../utils/util";
 import PoolInfoModal from "../model/PoolInfo";
 import TransactionInfoModal from "../model/TransactionInfo";
+import { io } from "../server";
 
 const ecc = require("@bitcoinerlab/secp256k1");
 const ECPair = ECPairFactory(ecc);
@@ -579,6 +581,7 @@ export const pushSwapPsbt = async (
             );
 
             // socket connection with Front end of price, volume, runeAmount, btcAmount
+            io.emit("pool-socket", getPoolSocket())
 
             return {
                 success: true,
