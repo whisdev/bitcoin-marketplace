@@ -137,7 +137,6 @@ export class LocalWallet {
     const psbtNetwork = this.network;
     const toSignInputs: any = [];
 
-    console.log(psbt.data.inputs);
     psbt.data.inputs.forEach((v, index) => {
       let script = null;
       let value = 0;
@@ -177,7 +176,6 @@ export class LocalWallet {
         psbt.signInput(input.index, signer, input.sighashTypes);
       }
       if (_opts.autoFinalized != false) {
-        // console.log(input.index);
         // psbt.validateSignaturesOfInput(input.index, validator);
         psbt.finalizeInput(input.index);
       }
