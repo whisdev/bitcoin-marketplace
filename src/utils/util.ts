@@ -8,6 +8,7 @@ import {
 } from "../config/config";
 import SwapHistoryModal from "../model/SwapHistory";
 import PoolInfoModal from "../model/PoolInfo";
+import { io } from "../server";
 
 export const splitData = (data: Array<any>, bundleSize: number): Array<any> => {
   // initialize new splited Data array
@@ -104,6 +105,8 @@ export const checkConfirmedTx = async () => {
             });
           }
         });
+
+        io.emit("mempool-socket", getHistorySocket())
       }
     });
   } catch (error) {
@@ -142,6 +145,8 @@ export const getPoolSocket = async () => {
       runeId: item.runeId,
       runeAmount: item.runeAmount,
       btcAmount: item.btcAmount,
+      volume: item.volume,
+      ticker: item.ticker,
       createdAt: item.createdAt
     }
   });
@@ -153,9 +158,9 @@ export const getPoolSocket = async () => {
 export const getHistorySocket = async () => {
   const historyInfo = await SwapHistoryModal.find();
 
-  const histofyInfoSet = historyInfo.map(item => {
+  const historyInfoSet = historyInfo.map(item => {
     return {
-      poolName: item.poolAddress,
+      poolAddress: item.poolAddress,
       runeAmount: item.runeAmount,
       btcAmount: item.btcAmount,
       userAddress: item.userAddress,
@@ -163,5 +168,5 @@ export const getHistorySocket = async () => {
     }
   });
 
-  return histofyInfoSet;
+  return historyInfoSet;
 }

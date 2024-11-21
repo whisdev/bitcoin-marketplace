@@ -35,7 +35,7 @@ app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 const server = http.createServer(app);
 
 // Set up Cross-Origin Resource Sharing (CORS) options
-app.use(cors())
+app.use(cors({origin: "*"}));
 
 // Socket.io
 export const io = new Server(server, { cors: { origin: "*" } });

@@ -21,8 +21,8 @@ marketplaceRouter.use(async (req, res, next) => {
 marketplaceRouter.post('/generateUserBuyRunePsbt', async (req, res, next) => {
     try {
         const { userPubkey, userAddress, userBuyRuneAmount, userSendingBtcAmount, poolAddress } = req.body;
-
-        const payload = await generateUserBuyRunePsbt(userPubkey, userAddress, userBuyRuneAmount, userSendingBtcAmount, poolAddress);
+        console.log('JSON.parse(userPubkey),','JSON.parse(userAddress) :>> ', JSON.parse(userPubkey), JSON.parse(userAddress));
+        const payload = await generateUserBuyRunePsbt(JSON.parse(userPubkey), JSON.parse(userAddress), userBuyRuneAmount, userSendingBtcAmount, poolAddress);
 
         return res.status(200).send(payload)
     } catch (error) {
@@ -36,6 +36,7 @@ marketplaceRouter.post('/generateUserBuyBtcPsbt', async (req, res, next) => {
     try {
         const { userPubkey, userAddress, userBuyBtcAmount, userSendingRuneAmount, poolAddress } = req.body;
 
+        console.log('req. :>> ', req.body);
         const payload = await generateUserBuyBtcPsbt(userPubkey, userAddress, userBuyBtcAmount, userSendingRuneAmount, poolAddress);
 
         return res.status(200).send(payload)

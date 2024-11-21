@@ -13,22 +13,22 @@ dotenv.config();
 export const getUserRuneInfo = async (userAddress: string) => {
     const poolInfoResult = await PoolInfoModal.find();
     
-    const poolRuneInfoSet = new Set(
-        poolInfoResult.map(item => `${item.runeId}`)
-    );
+    const poolRuneInfoSet = poolInfoResult.map(item => {return item.runeId});
 
+    console.log('poolRuneInfoSet :>> ', poolRuneInfoSet);
+    console.log('userAddress :>> ', userAddress);
     const addressRuneBalance = await getRuneBalanceListByAddress(userAddress);
     console.log('addressRuneBalance :>> ', addressRuneBalance);
 
     const matchedRuneInfo = addressRuneBalance
         ?.map(item => item.runeid)
-        .filter(runeId => poolRuneInfoSet.has(runeId)) || [];
+        .filter(runeId => poolRuneInfoSet.includes(runeId)) || [];
 
     console.log('matchedRuneInfo :>> ', matchedRuneInfo);
 
     const userRuneUtxoInfo: IRuneUtxo[] = await Promise.all(
         matchedRuneInfo.map(async runeId => {
-            const { runeUtxos } = await getRuneUtxoByAddress(runeId, userAddress);
+            const { runeUtxos } = await getRuneUtxoByAddress(userAddress, runeId);
             return runeUtxos;
         })
     ).then(results => results.flat());
