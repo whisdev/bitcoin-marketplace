@@ -231,7 +231,7 @@ export const getRuneBalanceListByAddress = async (address: string) => {
         if (res.data.code === -1) throw "Invalid Address";
 
         utxos.push(
-            ...(res.data.data.utxo as any[]).map((utxo) => {
+            ...(res.data.data.detail as any[]).map((utxo) => {
                 return {
                     rune: utxo.rune,
                     runeid: utxo.runeid,

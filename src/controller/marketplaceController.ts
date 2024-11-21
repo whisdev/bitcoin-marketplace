@@ -77,6 +77,7 @@ export const generateUserBuyRunePsbt = async (
     const userBtcUtxos = await getBtcUtxoByAddress(userAddress);
     const poolRuneUtxos = await getRuneUtxoByAddress(poolAddress, runeId);
 
+    console.log('poolRuneUtxos :>> ', poolRuneUtxos);
     // Prepare PSBT and initialize values
     const psbt = new bitcoin.Psbt({ network });
     const edicts: any = [];
@@ -98,7 +99,7 @@ export const generateUserBuyRunePsbt = async (
             index: runeutxo.vout,
             witnessUtxo: {
                 value: runeutxo.value,
-                script: Buffer.from(runeutxo.scriptpubkey, "hex"),
+                script: Buffer.from(runeutxo.scriptpubkey, "hex").slice(1,33),
             },
             tapInternalKey: pubkeyBuffer,
         });
@@ -176,8 +177,11 @@ export const generateUserBuyRunePsbt = async (
 
     // Calculate transaction fee
     const feeRate = testVersion ? testFeeRate : await getFeeRate();
-    const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
+    const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount * 10 ** 8;
 
+    console.log('userSendBtcAmount :>> ', userSendBtcAmount);
+    console.log('userSendBtcAmount * 10 ** 8 :>> ', userSendBtcAmount * 10 ** 8);
+    console.log('fee :>> ', fee);
     // Add BTC UTXOs for covering fees
     let totalBtcAmount = 0;
     for (const btcutxo of userBtcUtxos) {
@@ -350,7 +354,7 @@ export const generateUserBuyBtcPsbt = async (
     // Add BTC UTXOs for user buy btc amount
     let totalBtcAmount = 0;
     for (const btcutxo of poolBtcUtxos) {
-        if (totalBtcAmount >= userBuyBtcAmount) break;
+        if (totalBtcAmount >= userBuyBtcAmount * 10 ** 8) break;
 
         if (btcutxo.value > SEND_UTXO_FEE_LIMIT) {
             totalBtcAmount += btcutxo.value;
@@ -370,7 +374,7 @@ export const generateUserBuyBtcPsbt = async (
     }
 
     // Check if enough BTC balance is available
-    if (totalBtcAmount < userBuyBtcAmount) {
+    if (totalBtcAmount < userBuyBtcAmount * 10 ** 8) {
         return {
             success: false,
             message: "Insufficient BTC balance in Pool",
@@ -381,7 +385,7 @@ export const generateUserBuyBtcPsbt = async (
     // Add change output
     psbt.addOutput({
         address: userAddress,
-        value: userBuyBtcAmount,
+        value: userBuyBtcAmount * 10 ** 8,
     });
 
     // Calculate transaction fee

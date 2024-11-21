@@ -106,7 +106,7 @@ export const checkConfirmedTx = async () => {
           }
         });
 
-        io.emit("mempool-socket", getHistorySocket())
+        io.emit("mempool-socket", "fddfdfdfd")
       }
     });
   } catch (error) {
