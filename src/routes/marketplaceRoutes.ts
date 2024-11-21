@@ -36,9 +36,9 @@ marketplaceRouter.post('/generateUserBuyRunePsbt', async (req, res, next) => {
 // generate psbt that User buy Rune && send BTC
 marketplaceRouter.post('/generateUserBuyBtcPsbt', async (req, res, next) => {
     try {
-        const { userPubkey, userAddress, userBuyBtcAmount, userSendingRuneAmount, poolAddress } = req.body;
+        const { userPubkey, userAddress, userBuyBtcAmount, userSendRuneAmount, poolAddress } = req.body;
 
-        const payload = await generateUserBuyBtcPsbt(userPubkey, userAddress, userBuyBtcAmount, userSendingRuneAmount, poolAddress);
+        const payload = await generateUserBuyBtcPsbt(userPubkey, userAddress, userBuyBtcAmount, userSendRuneAmount, poolAddress);
 
         return res.status(200).send(payload)
     } catch (error) {
