@@ -80,6 +80,8 @@ export const checkConfirmedTx = async () => {
             : `https://mempool.space/api/block/${blockId}/txids`
         );
 
+        console.log('mempool block txIds :>>>>>>>>>>>>> ', txIds);
+
         const unconfirmedTxs = await TransactionInfoModal.aggregate([
           {
             $match: { isConfirmed: false }, // Stage 1: Match documents where confirmed is false
@@ -106,7 +108,7 @@ export const checkConfirmedTx = async () => {
           }
         });
 
-        io.emit("mempool-socket", "fddfdfdfd")
+        io.emit("mempool-socket", await getHistorySocket())
       }
     });
   } catch (error) {
@@ -157,14 +159,18 @@ export const getPoolSocket = async () => {
 // socket about tx info
 export const getHistorySocket = async () => {
   const historyInfo = await SwapHistoryModal.find();
+  const poolInfo = await PoolInfoModal.find();
 
   const historyInfoSet = historyInfo.map(item => {
+    const matchedPool = poolInfo.find(pool => pool.address == item.poolAddress)
     return {
+      ticker: matchedPool?.ticker,
       poolAddress: item.poolAddress,
       runeAmount: item.runeAmount,
       btcAmount: item.btcAmount,
       userAddress: item.userAddress,
-      swapType: item.swapType
+      swapType: item.swapType,
+      createdAt: item.createdAt
     }
   });
 

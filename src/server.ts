@@ -56,9 +56,4 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-// cron.schedule("*/10 * * * *", async () => {
-//   console.log("running a task every 10 minute");
-//   await checkTxStatus();
-// });
-
 export default app;
