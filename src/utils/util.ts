@@ -161,6 +161,7 @@ export const getHistorySocket = async () => {
   const historyInfo = await SwapHistoryModal.find();
   const poolInfo = await PoolInfoModal.find();
 
+  console.log('historyInfo :>> ', historyInfo);
   const historyInfoSet = historyInfo.map(item => {
     const matchedPool = poolInfo.find(pool => pool.address == item.poolAddress)
     return {
@@ -170,7 +171,7 @@ export const getHistorySocket = async () => {
       btcAmount: item.btcAmount,
       userAddress: item.userAddress,
       swapType: item.swapType,
-      createdAt: item.createdAt
+      createdAt: item.createdAt.getDate()
     }
   });
 
