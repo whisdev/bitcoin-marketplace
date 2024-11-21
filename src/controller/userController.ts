@@ -15,6 +15,8 @@ export const getUserRuneInfo = async (userAddress: string) => {
 
     const poolRuneInfoSet = poolInfoResult.map(item => { return item.runeId });
 
+    console.log('poolRuneInfoSet :>> ', poolRuneInfoSet);
+    console.log('userAddress :>> ', userAddress);
     const addressRuneBalance = await getRuneBalanceListByAddress(userAddress);
     console.log('addressRuneBalance :>> ', addressRuneBalance);
 

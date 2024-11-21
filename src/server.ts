@@ -48,11 +48,13 @@ const server = http.createServer(app);
 export const io = new Server(server, { cors: { origin: "*" } });
 // End Socket
 
+app.set("io", io);
+
 io.on("connection", (socket) => {
   console.log(`socket connected: ${socket.id}`);
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
