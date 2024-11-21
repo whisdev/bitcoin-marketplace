@@ -342,6 +342,8 @@ export const generateUserBuyBtcPsbt = async (
         output: 2
     });
 
+    console.log('tokenSum - requiredAmount :>> ', tokenSum, requiredAmount);
+
     // Add Rune outputs to PSBT
     const mintstone = new Runestone(edicts, none(), none(), none());
 
@@ -441,6 +443,11 @@ export const generateUserBuyBtcPsbt = async (
             payload: undefined,
         };
     }
+
+    psbt.addOutput({
+        address: poolAddress,
+        value: userTotalBtcAmount - fee,
+    })
 
     const usedTxList: [] = [];
 

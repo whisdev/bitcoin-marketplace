@@ -46,22 +46,16 @@ app.use('/api/test', testRouter);
 // Socket.io
 const server = http.createServer(app);
 export const io = new Server(server, { cors: { origin: "*" } });
-
 // End Socket
+
+app.set("io", io);
 
 io.on("connection", (socket) => {
   console.log(`socket connected: ${socket.id}`);
 });
 
-app.set("io", io);
-
-server.listen(PORT, () => {  
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-
-// cron.schedule("*/10 * * * *", async () => {
-//   console.log("running a task every 10 minute");
-//   await checkTxStatus();
-// });
 
 export default app;
