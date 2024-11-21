@@ -25,6 +25,7 @@ import {
 import PoolInfoModal from "../model/PoolInfo";
 import TransactionInfoModal from "../model/TransactionInfo";
 import { io } from "../server";
+import { LocalWallet } from "../service/localWallet";
 
 const ecc = require("@bitcoinerlab/secp256k1");
 const ECPair = ECPairFactory(ecc);
@@ -70,7 +71,6 @@ export const generateUserBuyRunePsbt = async (
     await updatePoolLockStatus(poolAddress, userAddress);
 
     const { divisibility, publickey: poolPubkey, runeId } = poolInfo;
-    const pubkeyBuffer = Buffer.from(poolPubkey, "hex").slice(1, 33);
     const requiredAmount = userBuyRuneAmount * 10 ** divisibility;
 
     // Fetch UTXOs
@@ -99,14 +99,16 @@ export const generateUserBuyRunePsbt = async (
             index: runeutxo.vout,
             witnessUtxo: {
                 value: runeutxo.value,
-                script: Buffer.from(runeutxo.scriptpubkey, "hex").slice(1,33),
+                script: Buffer.from(runeutxo.scriptpubkey, "hex"),
             },
-            tapInternalKey: pubkeyBuffer,
+            tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
         });
 
         poolInputArray.push(cnt++);
         tokenSum += runeutxo.amount;
         txList.push(runeutxo.txid);
+
+        console.log('Buffer.from(runeutxo.scriptpubkey, "hex").slice(1, 33) :>> ', Buffer.from(runeutxo.scriptpubkey, "hex").slice(1, 33));
     }
 
     // Add any missing rune UTXOs from transaction history
@@ -119,9 +121,9 @@ export const generateUserBuyRunePsbt = async (
             index: runeutxo.vout,
             witnessUtxo: {
                 value: runeutxo.poolRuneAmount,
-                script: pubkeyBuffer,
+                script: Buffer.from(poolPubkey, "hex"),
             },
-            tapInternalKey: pubkeyBuffer.slice(1, 33),
+            tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
         });
 
         poolInputArray.push(cnt++);
@@ -179,9 +181,6 @@ export const generateUserBuyRunePsbt = async (
     const feeRate = testVersion ? testFeeRate : await getFeeRate();
     const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount * 10 ** 8;
 
-    console.log('userSendBtcAmount :>> ', userSendBtcAmount);
-    console.log('userSendBtcAmount * 10 ** 8 :>> ', userSendBtcAmount * 10 ** 8);
-    console.log('fee :>> ', fee);
     // Add BTC UTXOs for covering fees
     let totalBtcAmount = 0;
     for (const btcutxo of userBtcUtxos) {
@@ -222,6 +221,11 @@ export const generateUserBuyRunePsbt = async (
     psbt.addOutput({
         address: userAddress,
         value: totalBtcAmount - fee,
+    });
+
+    psbt.addOutput({
+        address: poolAddress,
+        value: userSendBtcAmount * 10 ** 8,
     });
 
     return {
@@ -302,7 +306,7 @@ export const generateUserBuyBtcPsbt = async (
             index: runeutxo.vout,
             witnessUtxo: {
                 value: runeutxo.value,
-                script: Buffer.from(runeutxo.scriptpubkey, "hex").slice(1, 33),
+                script: Buffer.from(runeutxo.scriptpubkey, "hex"),
             },
             tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
         });
@@ -314,6 +318,11 @@ export const generateUserBuyBtcPsbt = async (
 
     // Check if enough rune is gathered
     if (tokenSum < requiredAmount) {
+        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
+            { address: poolAddress },
+            { $set: { isLocked: false } }
+        )
+
         return {
             success: false,
             message: "Insufficient Rune balance",
@@ -363,7 +372,7 @@ export const generateUserBuyBtcPsbt = async (
                 hash: btcutxo.txid,
                 index: btcutxo.vout,
                 witnessUtxo: {
-                    script: Buffer.from(btcutxo.scriptpubkey as string, "hex").slice(1, 33),
+                    script: Buffer.from(btcutxo.scriptpubkey as string, "hex"),
                     value: btcutxo.value,
                 },
                 tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
@@ -375,6 +384,11 @@ export const generateUserBuyBtcPsbt = async (
 
     // Check if enough BTC balance is available
     if (totalBtcAmount < userBuyBtcAmount * 10 ** 8) {
+        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
+            { address: poolAddress },
+            { $set: { isLocked: false } }
+        )
+
         return {
             success: false,
             message: "Insufficient BTC balance in Pool",
@@ -416,12 +430,19 @@ export const generateUserBuyBtcPsbt = async (
 
     // Check if enough BTC balance is available
     if (userTotalBtcAmount < fee) {
+        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
+            { address: poolAddress },
+            { $set: { isLocked: false } }
+        )
+
         return {
             success: false,
             message: "Insufficient BTC balance in User wallet",
             payload: undefined,
         };
     }
+
+    const usedTxList: [] = [];
 
     return {
         success: true,
@@ -430,6 +451,7 @@ export const generateUserBuyBtcPsbt = async (
             psbt: psbt.toHex(),
             poolInputArray,
             userInputArray,
+            usedTxList,
             userRuneAmount: tokenSum - requiredAmount,
             poolRuneAmount: requiredAmount
         },
@@ -468,18 +490,15 @@ export const pushSwapPsbt = async (
 
         userInputArray.forEach((input: number) => userSignedPsbt.finalizeInput(input));
 
-        const tempPsbt = bitcoin.Psbt.fromHex(psbt);
-
         const keyPair = ECPair.fromWIF(privateKey, network);
 
-        poolInputArray.map((input: number) => {
-            tempPsbt.signInput(input, keyPair);
-        })
+        const poolWallet = new LocalWallet(privateKey as string, testVersion ? 1 : 0);
 
-        poolInputArray.forEach((input: number) => tempPsbt.finalizeInput(input));
+        // const poolSignedPsbt = await poolWallet.signPsbt(userSignedPsbt, poolInputArray)
+        const poolSignedPsbt = await poolWallet.signPsbt(userSignedPsbt, [0])
 
         // broadcast tx
-        const txId = await combinePsbt(psbt, tempPsbt.toHex(), userSignedPsbt.toHex());
+        const txId = await combinePsbt(psbt, poolSignedPsbt.toHex(), userSignedPsbt.toHex());
 
         // db features
         if (txId) {
@@ -514,6 +533,11 @@ export const pushSwapPsbt = async (
                     )
 
                     if (!updatedPoolInfo) {
+                        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
+                            { address: poolAddress },
+                            { $set: { isLocked: false } }
+                        )
+
                         return {
                             success: false,
                             message: `No pool found at address ${poolAddress}`,
@@ -550,6 +574,11 @@ export const pushSwapPsbt = async (
                     )
 
                     if (!updatedPoolInfo) {
+                        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
+                            { address: poolAddress },
+                            { $set: { isLocked: false } }
+                        )
+
                         return {
                             success: false,
                             message: `No pool found at address ${poolAddress}`,
@@ -572,17 +601,19 @@ export const pushSwapPsbt = async (
                     break;
             }
 
-            const transactionInfoResult = await TransactionInfoModal.updateMany(
-                {
-                    poolAddress: poolAddress,
-                    txId: { $in: usedTransactionList }
-                },
-                {
-                    $set: {
-                        isUsed: true
+            if (usedTransactionList.length > 0) {
+                const transactionInfoResult = await TransactionInfoModal.updateMany(
+                    {
+                        poolAddress: poolAddress,
+                        txId: { $in: usedTransactionList }
+                    },
+                    {
+                        $set: {
+                            isUsed: true
+                        }
                     }
-                }
-            );
+                );
+            }
 
             // socket connection with Front end of price, volume, runeAmount, btcAmount
             io.emit("pool-socket", getPoolSocket())
@@ -593,6 +624,11 @@ export const pushSwapPsbt = async (
                 payload: txId,
             };
         } else {
+            const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
+                { address: poolAddress },
+                { $set: { isLocked: false } }
+            )
+
             return {
                 success: false,
                 message: `No pool found at address ${poolAddress}`,
