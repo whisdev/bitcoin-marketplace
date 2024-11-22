@@ -9,6 +9,7 @@ import {
 import SwapHistoryModal from "../model/SwapHistory";
 import PoolInfoModal from "../model/PoolInfo";
 import { io } from "../server";
+import { getPrice } from "../service/service";
 
 export const splitData = (data: Array<any>, bundleSize: number): Array<any> => {
   // initialize new splited Data array
@@ -108,7 +109,8 @@ export const checkConfirmedTx = async () => {
           }
         });
 
-        io.emit("mempool-socket", await getHistorySocket())
+        io.emit("mempool-socket", await getHistorySocket());
+        io.emit("mempool-price-socket", await getPrice());
       }
     });
   } catch (error) {
@@ -149,6 +151,7 @@ export const getPoolSocket = async () => {
       btcAmount: item.btcAmount,
       volume: item.volume,
       ticker: item.ticker,
+      price: (item.btcAmount / item.runeAmount).toFixed(6),
       createdAt: item.createdAt
     }
   });

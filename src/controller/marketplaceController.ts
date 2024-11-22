@@ -8,6 +8,7 @@ import {
     combinePsbt,
     getBtcUtxoByAddress,
     getFeeRate,
+    getPrice,
     getRuneUtxoByAddress,
 } from '../service/service';
 import {
@@ -362,6 +363,8 @@ export const generateUserBuyBtcPsbt = async (
         value: STANDARD_RUNE_UTXO_VALUE
     });
 
+    console.log('psbt :>> ', psbt);
+
     // Add BTC UTXOs for user buy btc amount
     let totalBtcAmount = 0;
     for (const btcutxo of poolBtcUtxos) {
@@ -384,6 +387,8 @@ export const generateUserBuyBtcPsbt = async (
         }
     }
 
+    console.log('userBuyBtcAmount * 10 ** 8 :>> ', userBuyBtcAmount * 10 ** 8);
+console.log('totalBtcAmount :>> ', totalBtcAmount);
     // Check if enough BTC balance is available
     if (totalBtcAmount < userBuyBtcAmount * 10 ** 8) {
         const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
@@ -408,6 +413,7 @@ export const generateUserBuyBtcPsbt = async (
     const feeRate = testVersion ? testFeeRate : await getFeeRate();
     const fee = calculateTxFee(psbt, feeRate);
 
+    console.log('fee :>> ', fee);
     // Add BTC UTXOs for covering fees
     let userTotalBtcAmount = 0;
     for (const btcutxo of userBtcUtxos) {
@@ -450,6 +456,8 @@ export const generateUserBuyBtcPsbt = async (
     })
 
     const usedTxList: [] = [];
+
+    console.log('psbt :>> ', psbt);
 
     return {
         success: true,
@@ -648,6 +656,16 @@ export const pushSwapPsbt = async (
             message: `This user keep signing over ${lockTime} sec`,
             payload: undefined,
         };
+    }
+}
+
+export const getMempoolBtcPrice = async() => {
+    const price = await getPrice();
+
+    return {
+        success: true,
+        message:`Mempool price is ${price}`,
+        payload: price
     }
 }
 

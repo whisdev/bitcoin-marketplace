@@ -116,6 +116,22 @@ export const getFeeRate = async () => {
     }
 };
 
+export const getPrice = async () => {
+    try {
+        // const url = `https://mempool.space/${testVersion ? "testnet/" : ""
+        const url = `https://mempool.space/api/v1/prices`;
+
+        const res = await axios.get(url);
+
+        console.log('res.data :>> ', res.data);
+
+        return res.data.USD;
+    } catch (error) {
+        console.log("Mempool api is not working now. Try again later");
+        return 90000;
+    }
+};
+
 export const pushRawTx = async (rawTx: string) => {
     const txid = await postData(
         `https://mempool.space/${testVersion ? "testnet/" : ""}api/tx`,
