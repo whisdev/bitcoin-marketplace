@@ -13,8 +13,6 @@ import { getPrice } from '../service/service';
 const marketplaceRouter = Router();
 
 marketplaceRouter.use(async (req, res, next) => {
-    console.log('');
-    console.log(`Request received for ${req.method} ${req.url}`);
     next();
 })
 
@@ -22,10 +20,8 @@ marketplaceRouter.use(async (req, res, next) => {
 marketplaceRouter.post('/generateUserBuyRunePsbt', async (req, res, next) => {
     try {
         const { userPubkey, userAddress, userBuyRuneAmount, userSendBtcAmount, poolAddress } = req.body;
-
         const payload = await generateUserBuyRunePsbt(userPubkey, userAddress, userBuyRuneAmount, userSendBtcAmount, poolAddress);
 
-        console.log('payload :>> ', payload);
         return res.status(200).send(payload)
     } catch (error) {
         console.log(error);
@@ -40,7 +36,6 @@ marketplaceRouter.post('/generateUserBuyBtcPsbt', async (req, res, next) => {
 
         const payload = await generateUserBuyBtcPsbt(userPubkey, userAddress, userBuyBtcAmount, userSendRuneAmount, poolAddress);
 
-        console.log('payload :>> ', payload);
         return res.status(200).send(payload)
     } catch (error) {
         console.log(error);
@@ -53,7 +48,7 @@ marketplaceRouter.post('/pushPsbt', async (req, res, next) => {
     try {
         const { psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, btcAmount, userInputArray, poolInputArray, userAddress, poolAddress, usedTransactionList, swapType } = req.body;
 
-        const payload = await pushSwapPsbt(psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, btcAmount, userInputArray, poolInputArray, userAddress, poolAddress, usedTransactionList, swapType);
+        const payload = await pushSwapPsbt(psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, Number(btcAmount), userInputArray, poolInputArray, userAddress, poolAddress, usedTransactionList, swapType);
 
         return res.status(200).send(payload);
     } catch (error) {
@@ -81,9 +76,6 @@ marketplaceRouter.post('/removeSwapTx', async (req, res, next) => {
 marketplaceRouter.get('/getMempoolBtcPrice', async (req, res, next) => {
     try {
         const payload = await getPrice();
-
-        console.log('get mempool btc price payload :>> ', payload);
-        console.log('get mempool btc price payload :>> ', typeof(payload));
 
         return res.json(payload);
     } catch (error) {

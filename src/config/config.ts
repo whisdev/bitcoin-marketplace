@@ -3,7 +3,7 @@ dotenv.config();
 
 // user info
 export const testVersion = true;
-export const testFeeRate = 1500;
+export const testFeeRate = 3000;
 export const lockTime = 15
 
 // .env info

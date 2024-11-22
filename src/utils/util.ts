@@ -81,13 +81,9 @@ export const checkConfirmedTx = async () => {
             : `https://mempool.space/api/block/${blockId}/txids`
         );
 
-        console.log('mempool block txIds :>>>>>>>>>>>>> ', txIds);
+        const unconfirmedTxs = await TransactionInfoModal.find();
 
-        const unconfirmedTxs = await TransactionInfoModal.aggregate([
-          {
-            $match: { isConfirmed: false }, // Stage 1: Match documents where confirmed is false
-          },
-        ]);
+        console.log("after mempool block txids");
 
         unconfirmedTxs.map(async (unconfirmedTx) => {
           if (txIds.data.includes(unconfirmedTx.txId)) {
@@ -129,13 +125,11 @@ export const updatePoolLockStatus = async (
 
   setTimeout(async () => {
     if (poolInfoResult?.isLocked && poolInfoResult.lockedByAddress == userAddress) {
-      console.log("updatePoolLockStatus");
       await PoolInfoModal.findOneAndUpdate(
         { address: poolAddress },
         { $set: { isLocked: false } }
       )
     }
-    console.log("updatePoolLockStatus");
   }, lockTime * 10 ** 3);
 }
 
@@ -164,7 +158,6 @@ export const getHistorySocket = async () => {
   const historyInfo = await SwapHistoryModal.find();
   const poolInfo = await PoolInfoModal.find();
 
-  console.log('historyInfo :>> ', historyInfo);
   const historyInfoSet = historyInfo.map(item => {
     const matchedPool = poolInfo.find(pool => pool.address == item.poolAddress)
     return {
@@ -174,6 +167,7 @@ export const getHistorySocket = async () => {
       btcAmount: item.btcAmount,
       userAddress: item.userAddress,
       swapType: item.swapType,
+      txId: item.txId,
       createdAt: item.createdAt.getDate()
     }
   });

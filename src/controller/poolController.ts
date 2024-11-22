@@ -26,8 +26,6 @@ export const getPullInfo = async () => {
     }
     );
 
-    console.log('poolInfoSet :>> ', poolInfoSet);
-
     return {
       success: true,
       message: "Fetch All Info",
