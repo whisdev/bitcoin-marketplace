@@ -89,15 +89,3 @@ We welcome contributions from the community! To contribute:
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Contact
-
-For questions, suggestions, or feedback, feel free to reach out:
-
-- Twitter: [@ptcbink](https://x.com/muffin819)
-
----
-
-Thank you for visiting the Rune swap Project! We hope you find it useful and look forward to your contributions.
-
-Test
