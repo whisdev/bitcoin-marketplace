@@ -2,16 +2,6 @@
 
 Welcome to the Rune swap Project, a decentralized application (dApp) built in the Bitcoin Rune space. This project leverages React and the Bitcoin CLI to facilitate the swaping of runes. Explore the repository to learn more about how it works and how you can contribute!
 
-## Table of Contents
-
-- [Introduction](#introduction)
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact](#contact)
-
 ## Introduction
 
 The Rune swap Project is designed to provide a seamless and secure way to swap runes within the Bitcoin ecosystem. By using this dApp, users can ensure their runes are permanently removed from circulation, enhancing the value and scarcity of remaining runes.
@@ -44,21 +34,6 @@ The Rune swap Project is designed to provide a seamless and secure way to swap r
 
 P.S. All necessary values are in network.config.ts.
 
-
-## Installation
-
-To get started with the Rune swap Project, follow these steps:
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/ptc-bink/rune-swap-be.git
-   cd rune-swap-be
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
 
 3. **Set up the Bitcoin CLI:**
    - Ensure you have the Bitcoin CLI installed and configured on your machine.
