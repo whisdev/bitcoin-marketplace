@@ -54,18 +54,9 @@ marketplaceRouter.post('/generateUserBuyBtcSellRunePsbt', async (req, res, next)
 // generate psbt taht User buy Brc20 && send BTC
 marketplaceRouter.post('/generateUserBuyBrc20SellBtcPsbt', async (req, res, next) => {
     try {
-        const { address, ticker, amount } = req.body;
+        const { userPubkey, userAddress, userBuyBrc20Amount, userSendBtcAmount, poolAddress } = req.body;
 
-        const inscriptionList = await getBrc20TransferableInscriptionUtxoByAddress(address, ticker);
-
-        console.log('inscriptionList :>> ', inscriptionList);
-
-        const existedInscription = inscriptionList.find(inscription => inscription.data.tick.toUpperCase() == ticker.toUpperCase() && inscription.data.amt == amount)
-
-        let payload;
-        if (!existedInscription) {
-            // payload = await generateUserBuyBrc20Psbt(address, ticker, amount, existedInscription);
-        }
+        const payload = await generateUserBuyBrc20SellBtcPsbt(userPubkey, userAddress, userBuyBrc20Amount, userSendBtcAmount, poolAddress);
 
         console.log('payload :>> ', payload);
         return res.status(200).send(payload)

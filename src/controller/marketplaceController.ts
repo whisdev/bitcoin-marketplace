@@ -6,9 +6,12 @@ import dotenv from 'dotenv';
 import {
     calculateTxFee,
     combinePsbt,
+    createOrderBrc20Transfer,
+    getBrc20TransferableInscriptionUtxoByAddress,
     getBtcUtxoByAddress,
     getFeeRate,
     getInscriptionData,
+    getPrice,
     getRuneUtxoByAddress,
 } from '../service/service';
 import {
@@ -35,7 +38,7 @@ dotenv.config();
 
 const network = testVersion ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
 
-export const generateUserBuyRunePsbt = async (
+export const generateUserBuyRuneSellBtcPsbt = async (
     userPubkey: string,
     userAddress: string,
     userBuyRuneAmount: number,
@@ -59,7 +62,7 @@ export const generateUserBuyRunePsbt = async (
         }
     }
 
-    const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
+    await PoolInfoModal.findOneAndUpdate(
         { address: poolAddress, tokenType: "RUNE" },
         {
             $set: {
@@ -76,7 +79,7 @@ export const generateUserBuyRunePsbt = async (
 
     // Fetch UTXOs
     const userBtcUtxos = await getBtcUtxoByAddress(userAddress);
-    const poolRuneUtxos = await getRuneUtxoByAddress(poolAddress, runeId);
+    const poolRuneUtxos = await getRuneUtxoByAddress(poolAddress, runeId as string);
 
     // Prepare PSBT and initialize values
     const psbt = new bitcoin.Psbt({ network });
@@ -87,8 +90,8 @@ export const generateUserBuyRunePsbt = async (
     let tokenSum = 0;
     const txList = [];
     const usedTxList = [];
-    const runeBlock = Number(runeId.split(":")[0])
-    const runeIdx = Number(runeId.split(":")[1])
+    const runeBlock = Number((runeId as string).split(":")[0])
+    const runeIdx = Number((runeId as string).split(":")[1])
 
     // Add pool rune UTXO inputs to PSBT
     for (const runeutxo of poolRuneUtxos.runeUtxos) {
@@ -175,6 +178,11 @@ export const generateUserBuyRunePsbt = async (
         value: STANDARD_RUNE_UTXO_VALUE
     });
 
+    psbt.addOutput({
+        address: poolAddress,
+        value: Math.floor(userSendBtcAmount * 10 ** 8),
+    });
+
     // Calculate transaction fee
     const feeRate = testVersion ? testFeeRate : await getFeeRate();
     const fee = calculateTxFee(psbt, feeRate) + Math.floor(userSendBtcAmount * 10 ** 8);
@@ -221,11 +229,6 @@ export const generateUserBuyRunePsbt = async (
         value: totalBtcAmount - fee,
     });
 
-    psbt.addOutput({
-        address: poolAddress,
-        value: Math.floor(userSendBtcAmount * 10 ** 8),
-    });
-
     return {
         success: true,
         message: "PSBT generated successfully",
@@ -240,7 +243,7 @@ export const generateUserBuyRunePsbt = async (
     };
 };
 
-export const generateUserBuyBtcPsbt = async (
+export const generateUserBuyBtcSellRunePsbt = async (
     userPubkey: string,
     userAddress: string,
     userBuyBtcAmount: number,
@@ -282,7 +285,7 @@ export const generateUserBuyBtcPsbt = async (
     // Fetch UTXOs
     const poolBtcUtxos = await getBtcUtxoByAddress(poolAddress);
     const userBtcUtxos = await getBtcUtxoByAddress(userAddress);
-    const userRuneUtxos = await getRuneUtxoByAddress(userAddress, runeId);
+    const userRuneUtxos = await getRuneUtxoByAddress(userAddress, runeId as string);
 
     // Prepare PSBT and initialize values
     const psbt = new bitcoin.Psbt({ network });
@@ -292,8 +295,8 @@ export const generateUserBuyBtcPsbt = async (
     let cnt = 0;
     let tokenSum = 0;
     const txList = [];
-    const runeBlock = Number(runeId.split(":")[0]);
-    const runeIdx = Number(runeId.split(":")[1]);
+    const runeBlock = Number((runeId as string).split(":")[0]);
+    const runeIdx = Number((runeId as string).split(":")[1]);
 
     // Add pool rune UTXO inputs to PSBT
     for (const runeutxo of userRuneUtxos.runeUtxos) {
@@ -400,10 +403,10 @@ export const generateUserBuyBtcPsbt = async (
         value: Math.floor(userBuyBtcAmount * 10 ** 8),
     });
 
-    // psbt.addOutput({
-    //     address: poolAddress,
-    //     value: totalBtcAmount - Math.floor(userBuyBtcAmount * 10 ** 8)
-    // })
+    psbt.addOutput({
+        address: poolAddress,
+        value: totalBtcAmount - Math.floor(userBuyBtcAmount * 10 ** 8)
+    })
 
     // Calculate transaction fee
     const feeRate = testVersion ? testFeeRate : await getFeeRate();
@@ -447,8 +450,8 @@ export const generateUserBuyBtcPsbt = async (
     }
 
     psbt.addOutput({
-        address: poolAddress,
-        value: userTotalBtcAmount - fee + totalBtcAmount - Math.floor(userBuyBtcAmount * 10 ** 8),
+        address: userAddress,
+        value: userTotalBtcAmount - fee,
     })
 
     const usedTxList: [] = [];
@@ -469,25 +472,100 @@ export const generateUserBuyBtcPsbt = async (
     };
 };
 
-export const generateUserBuyBrc20Psbt = async (
-    poolAddress: string,
-    poolPubkey: string,
-    inscriptionId: string,
-    userAddress: string,
+export const generateUserBuyBrc20SellBtcPsbt = async (
     userPubkey: string,
-    sendingBtcAmount: number
+    userAddress: string,
+    userBuyBrc20Amount: number,
+    userSendBtcAmount: number,
+    poolAddress: string,
 ) => {
     const psbt = new bitcoin.Psbt({ network });
+    const feeRate = testVersion ? testFeeRate : await getFeeRate();
 
-    const poolResult = PoolInfoModal.find({
+    const poolInfoResult = await PoolInfoModal.findOne({
         address: poolAddress,
         tokenType: 'BRC20'
     })
 
+    if (!poolInfoResult) {
+        return {
+            success: false,
+            message: `No pool found at address ${poolAddress}`,
+            payload: undefined
+        }
+    }
+
+    const ticker = poolInfoResult.ticker;
+    const poolPubkey = poolInfoResult.publickey;
+
+    const inscriptionList = await getBrc20TransferableInscriptionUtxoByAddress(poolAddress, ticker);
     const btcUtxos = await getBtcUtxoByAddress(userAddress);
+
+    const existedInscription = inscriptionList.find(inscription => inscription.data.tick.toUpperCase() == ticker.toUpperCase() && inscription.data.amt == userBuyBrc20Amount);
+
+    if (!existedInscription) {
+        const orderInscriptionInfo = await createOrderBrc20Transfer(poolAddress, feeRate, ticker, userBuyBrc20Amount)
+
+        const payAddress = orderInscriptionInfo.payAddress;
+        const inscriptionPayAmount = orderInscriptionInfo.amount;
+
+        psbt.addOutput({
+            address: payAddress,
+            value: inscriptionPayAmount
+        })
+
+        psbt.addOutput({
+            address: poolAddress,
+            value: userSendBtcAmount
+        })
+
+        // add btc utxo input
+        let totalBtcAmount = 0;
+
+        for (const btcutxo of btcUtxos) {
+            const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
+            if (totalBtcAmount < fee && btcutxo.value > 10000) {
+                totalBtcAmount += btcutxo.value;
+
+                psbt.addInput({
+                    hash: btcutxo.txid,
+                    index: btcutxo.vout,
+                    witnessUtxo: {
+                        value: btcutxo.value,
+                        script: Buffer.from(btcutxo.scriptpubkey as string, "hex"),
+                    },
+                    tapInternalKey: Buffer.from(userPubkey, "hex").slice(1, 33)
+                })
+            }
+        }
+
+        const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
+
+        if (totalBtcAmount < fee) throw "BTC balance is not enough";
+
+        psbt.addOutput({
+            address: userAddress,
+            value: totalBtcAmount - fee,
+        });
+
+        return {
+            success: true,
+            message: `PSBT generated successfully`,
+            payload: {
+                psbt: psbt.toHex(),
+                userPubkey,
+                userAddress,
+                userBuyBrc20Amount,
+                userSendBtcAmount,
+                poolAddress,
+                signedStatus: 'INSCRIBE'
+            }
+        }
+    }
+
     const inscriptionData = await getInscriptionData(
         poolAddress,
-        inscriptionId
+        existedInscription.inscriptionId
     );
 
     psbt.addInput({
@@ -507,16 +585,14 @@ export const generateUserBuyBrc20Psbt = async (
 
     psbt.addOutput({
         address: poolAddress,
-        value: sendingBtcAmount
+        value: userSendBtcAmount
     })
-
-    const feeRate = testVersion ? testFeeRate : await getFeeRate();
 
     // add btc utxo input
     let totalBtcAmount = 0;
 
     for (const btcutxo of btcUtxos) {
-        const fee = calculateTxFee(psbt, feeRate) + sendingBtcAmount;
+        const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
         if (totalBtcAmount < fee && btcutxo.value > 10000) {
             totalBtcAmount += btcutxo.value;
 
@@ -532,7 +608,7 @@ export const generateUserBuyBrc20Psbt = async (
         }
     }
 
-    const fee = calculateTxFee(psbt, feeRate) + sendingBtcAmount;
+    const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
 
     if (totalBtcAmount < fee) throw "BTC balance is not enough";
 
@@ -543,6 +619,8 @@ export const generateUserBuyBrc20Psbt = async (
 
     return psbt.toHex();
 }
+
+export const generateuserBuyBtcSellBrc20Psbt = async () => { }
 
 export const pushSwapPsbt = async (
     psbt: string,

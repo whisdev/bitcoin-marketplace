@@ -129,10 +129,10 @@ export const getInscriptionData = async (
     }
 };
 
-export const createBrc20Transfer = async (address: string, feeRate: number, ticker: string, amount: number) => {
+export const createOrderBrc20Transfer = async (address: string, feeRate: number, ticker: string, amount: number) => {
     const url = `${OPENAPI_UNISAT_URL}/v2/inscribe/order/create/brc20-transfer`;
 
-    const response = await axios.post(
+    const res = await axios.post(
         url,
         {
             receiveAddress: address,
@@ -150,7 +150,7 @@ export const createBrc20Transfer = async (address: string, feeRate: number, tick
         }
     );
 
-    console.log("response ==> ", response.data);
+    return res.data;
 }
 
 export const getBrc20TransferableInscriptionUtxoByAddress = async (address: string, ticker: string) => {

@@ -4,7 +4,7 @@ const PoolInfo = new mongoose.Schema({
     address: { type: String, required: true },
     publickey: { type: String, required: true },
     privatekey: { type: String, required: true },
-    runeId: { type: String, required: true },
+    runeId: { type: String, required: false },
     ticker: { type: String, required: true },
     tokenType: { type: String, required: true },
     divisibility: { type: Number, required: true },
