@@ -20,12 +20,11 @@ export const getPullInfo = async () => {
         btcAmount: item.btcAmount,
         ticker: item.ticker,
         tokenType: item.tokenType,
+        price: (item.btcAmount / item.runeAmount).toFixed(6),
         createdAt: item.createdAt
       }
     }
     );
-
-    console.log('poolInfoSet :>> ', poolInfoSet);
 
     return {
       success: true,

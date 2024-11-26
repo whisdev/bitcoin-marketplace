@@ -4,42 +4,35 @@ import dotenv from 'dotenv';
 const ecc = require("@bitcoinerlab/secp256k1");
 bitcoin.initEccLib(ecc);
 
-import { getBtcUtxoByAddress, getRuneBalanceListByAddress, getRuneUtxoByAddress } from "../service/service";
+import { getBtcUtxoByAddress, getRuneBalanceListByAddress, getRuneUtxoByAddress, getBtcBalanceByAddress } from "../service/service";
 import PoolInfoModal from "../model/PoolInfo";
 import { IRuneUtxo } from "../utils/type";
+import { OPENAPI_UNISAT_TOKEN } from "../config/config";
 
 dotenv.config();
 
 export const getUserRuneInfo = async (userAddress: string) => {
-    const poolInfoResult = await PoolInfoModal.find();
 
-    const poolRuneInfoSet = poolInfoResult.map(item => { return item.runeId });
-
-    const addressRuneBalance = await getRuneBalanceListByAddress(userAddress);
-
-    // runeAmount, runeId, ticker, runebalance, btcbalance
-    // const tempUserRuneInfo: any = await Promise.all(
-    //     addressRuneBalance?.map(async item => {
-    //         const { tokenSum } = await getRuneUtxoByAddress(userAddress, item.runeId);
-    //         return {
-    //             tokenType: "rune",
-    //             btcAmount: '',
-    //             ticker: '',
-    //             poolAddress: '',
-    //             runeAmont: tokenSum,
-    //             runeId: runeId,
-    //         };
-    //     })
-    // );
-
-    // const { tokenSum } = await 
-    // const userBtcInfo = await getBtcUtxoByAddress(userAddress);
-
-    const userRuneInfo = "tempUserRuneInfo";
+    const response = await getRuneBalanceListByAddress(userAddress);
+   
+    const userRuneInfo = response;
+    console.log('userRuneInfo :>> ', userRuneInfo);
 
     return {
         success: true,
         message: "get user rune info successfully",
         payload: userRuneInfo,
+    };
+}
+
+export const getWalletBalance = async (userAddress: string) => {
+    const response = await getBtcBalanceByAddress(userAddress);
+   
+    const balance = response;
+    console.log('userWalletBalanceInfo :>> ', balance);
+    return {
+        success: true,
+        message: "get user rune info successfully",
+        payload: balance,
     };
 }

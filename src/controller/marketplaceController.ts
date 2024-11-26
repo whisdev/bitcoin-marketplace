@@ -78,7 +78,6 @@ export const generateUserBuyRunePsbt = async (
     const userBtcUtxos = await getBtcUtxoByAddress(userAddress);
     const poolRuneUtxos = await getRuneUtxoByAddress(poolAddress, runeId);
 
-    console.log('poolRuneUtxos :>> ', poolRuneUtxos);
     // Prepare PSBT and initialize values
     const psbt = new bitcoin.Psbt({ network });
     const edicts: any = [];
@@ -108,8 +107,6 @@ export const generateUserBuyRunePsbt = async (
         poolInputArray.push(cnt++);
         tokenSum += runeutxo.amount;
         txList.push(runeutxo.txid);
-
-        console.log('Buffer.from(runeutxo.scriptpubkey, "hex").slice(1, 33) :>> ', Buffer.from(runeutxo.scriptpubkey, "hex").slice(1, 33));
     }
 
     // Add any missing rune UTXOs from transaction history
@@ -180,7 +177,7 @@ export const generateUserBuyRunePsbt = async (
 
     // Calculate transaction fee
     const feeRate = testVersion ? testFeeRate : await getFeeRate();
-    const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount * 10 ** 8;
+    const fee = calculateTxFee(psbt, feeRate) + Math.floor(userSendBtcAmount * 10 ** 8);
 
     // Add BTC UTXOs for covering fees
     let totalBtcAmount = 0;
@@ -226,7 +223,7 @@ export const generateUserBuyRunePsbt = async (
 
     psbt.addOutput({
         address: poolAddress,
-        value: userSendBtcAmount * 10 ** 8,
+        value: Math.floor(userSendBtcAmount * 10 ** 8),
     });
 
     return {
@@ -343,8 +340,6 @@ export const generateUserBuyBtcPsbt = async (
         output: 2
     });
 
-    console.log('tokenSum - requiredAmount :>> ', tokenSum, requiredAmount);
-
     // Add Rune outputs to PSBT
     const mintstone = new Runestone(edicts, none(), none(), none());
 
@@ -366,7 +361,7 @@ export const generateUserBuyBtcPsbt = async (
     // Add BTC UTXOs for user buy btc amount
     let totalBtcAmount = 0;
     for (const btcutxo of poolBtcUtxos) {
-        if (totalBtcAmount >= userBuyBtcAmount * 10 ** 8) break;
+        if (totalBtcAmount >= Math.floor(userBuyBtcAmount * 10 ** 8)) break;
 
         if (btcutxo.value > SEND_UTXO_FEE_LIMIT) {
             totalBtcAmount += btcutxo.value;
@@ -386,7 +381,7 @@ export const generateUserBuyBtcPsbt = async (
     }
 
     // Check if enough BTC balance is available
-    if (totalBtcAmount < userBuyBtcAmount * 10 ** 8) {
+    if (totalBtcAmount < Math.floor(userBuyBtcAmount * 10 ** 8)) {
         const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
             { address: poolAddress, tokenType: "RUNE" },
             { $set: { isLocked: false } }
@@ -402,13 +397,19 @@ export const generateUserBuyBtcPsbt = async (
     // Add change output
     psbt.addOutput({
         address: userAddress,
-        value: userBuyBtcAmount * 10 ** 8,
+        value: Math.floor(userBuyBtcAmount * 10 ** 8),
     });
+
+    // psbt.addOutput({
+    //     address: poolAddress,
+    //     value: totalBtcAmount - Math.floor(userBuyBtcAmount * 10 ** 8)
+    // })
 
     // Calculate transaction fee
     const feeRate = testVersion ? testFeeRate : await getFeeRate();
     const fee = calculateTxFee(psbt, feeRate);
 
+    console.log('fee :>> ', fee);
     // Add BTC UTXOs for covering fees
     let userTotalBtcAmount = 0;
     for (const btcutxo of userBtcUtxos) {
@@ -447,10 +448,12 @@ export const generateUserBuyBtcPsbt = async (
 
     psbt.addOutput({
         address: poolAddress,
-        value: userTotalBtcAmount - fee,
+        value: userTotalBtcAmount - fee + totalBtcAmount - Math.floor(userBuyBtcAmount * 10 ** 8),
     })
 
     const usedTxList: [] = [];
+
+    console.log('psbt :>> ', psbt);
 
     return {
         success: true,
@@ -724,6 +727,16 @@ export const pushSwapPsbt = async (
             message: `This user keep signing over ${lockTime} sec`,
             payload: undefined,
         };
+    }
+}
+
+export const getMempoolBtcPrice = async () => {
+    const price = await getPrice();
+
+    return {
+        success: true,
+        message: `Mempool price is ${price}`,
+        payload: price
     }
 }
 

@@ -10,13 +10,15 @@ import {
     pushSwapPsbt,
     removeSwapTransaction,
 } from '../controller/marketplaceController';
+
 import { getBrc20TransferableInscriptionUtxoByAddress } from '../service/service';
+
+import { getPrice } from '../service/service';
+
 
 const marketplaceRouter = Router();
 
 marketplaceRouter.use(async (req, res, next) => {
-    console.log('');
-    console.log(`Request received for ${req.method} ${req.url}`);
     next();
 })
 
@@ -28,7 +30,6 @@ marketplaceRouter.post('/generateUserBuyRuneSellBtcPsbt', async (req, res, next)
         console.log('req.body :>> ', req.body);
         const payload = await generateUserBuyRuneSellBtcPsbt(userPubkey, userAddress, userBuyRuneAmount, userSendBtcAmount, poolAddress);
 
-        console.log('payload :>> ', payload);
         return res.status(200).send(payload)
     } catch (error) {
         console.log(error);
@@ -79,7 +80,7 @@ marketplaceRouter.post('/pushPsbt', async (req, res, next) => {
     try {
         const { psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, btcAmount, userInputArray, poolInputArray, userAddress, poolAddress, usedTransactionList, swapType } = req.body;
 
-        const payload = await pushSwapPsbt(psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, btcAmount, userInputArray, poolInputArray, userAddress, poolAddress, usedTransactionList, swapType);
+        const payload = await pushSwapPsbt(psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, Number(btcAmount), userInputArray, poolInputArray, userAddress, poolAddress, usedTransactionList, swapType);
 
         return res.status(200).send(payload);
     } catch (error) {
@@ -96,6 +97,19 @@ marketplaceRouter.post('/removeSwapTx', async (req, res, next) => {
         const payload = await removeSwapTransaction(poolAddress, userAddress);
 
         return res.status(200).send(payload);
+    } catch (error) {
+        console.log(error);
+        return res.status(404).send(error);
+    }
+});
+
+
+// remove swap transaction
+marketplaceRouter.get('/getMempoolBtcPrice', async (req, res, next) => {
+    try {
+        const payload = await getPrice();
+
+        return res.json(payload);
     } catch (error) {
         console.log(error);
         return res.status(404).send(error);

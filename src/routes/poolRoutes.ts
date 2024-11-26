@@ -6,7 +6,6 @@ const poolRouter = Router();
 
 poolRouter.use(async (req, res, next) => {
     console.log('');
-    console.log(`Request received for ${req.method} ${req.url}`);
     next();
 })
 

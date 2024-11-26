@@ -205,6 +205,38 @@ export const getFeeRate = async () => {
     }
 };
 
+export const getPrice = async () => {
+    try {
+        // const url = `https://mempool.space/${testVersion ? "testnet/" : ""
+        const url = `https://mempool.space/api/v1/prices`;
+
+        const res = await axios.get(url);
+
+        return res.data.USD;
+    } catch (error) {
+        console.log("Mempool api is not working now. Try again later");
+        return 90000;
+    }
+};
+
+
+export const getBtcBalanceByAddress = async (address: string) => {
+    try {
+        const response = await fetch(`${OPENAPI_UNISAT_URL}/v1/indexer/address/${address}/balance`, {
+            method: 'GET',
+            headers: {Authorization: `Bearer ${OPENAPI_UNISAT_TOKEN}`},
+        });
+
+        const data:any = await response.json();
+        return data.data.satoshi;
+      
+    } catch (error) {
+        console.log("Mempool api is not working now. Try again later");
+        return 90000;
+    }
+};
+
+
 export const pushRawTx = async (rawTx: string) => {
     const txid = await postData(
         `https://mempool.space/${testVersion ? "testnet/" : ""}api/tx`,
@@ -269,8 +301,6 @@ export const calculateTxFee = (psbt: bitcoin.Psbt, feeRate: number) => {
 export const getRuneUtxoByAddress = async (address: string, runeId: string) => {
     const url = `${OPENAPI_UNISAT_URL}/v1/indexer/address/${address}/runes/${runeId}/utxo`;
 
-    console.log("url===========>", url);
-
     const config = {
         headers: {
             Authorization: `Bearer ${OPENAPI_UNISAT_TOKEN}`,
@@ -281,8 +311,6 @@ export const getRuneUtxoByAddress = async (address: string, runeId: string) => {
     const size = 5000;
     const utxos: IRuneUtxo[] = [];
     const res = await axios.get(url, { ...config, params: { cursor, size } });
-    console.log("res.data utxo ==> ");
-    console.log(res.data.data.utxo[0].runes);
 
     if (res.data.code === -1) throw "Invalid Address";
     utxos.push(
