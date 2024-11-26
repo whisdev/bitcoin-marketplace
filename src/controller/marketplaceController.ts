@@ -35,7 +35,7 @@ dotenv.config();
 
 const network = testVersion ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
 
-export const generateUserBuyRunePsbt = async (
+export const generateUserBuyRuneSellBtcPsbt = async (
     userPubkey: string,
     userAddress: string,
     userBuyRuneAmount: number,
@@ -243,7 +243,7 @@ export const generateUserBuyRunePsbt = async (
     };
 };
 
-export const generateUserBuyBtcPsbt = async (
+export const generateUserBuyBtcSellRunePsbt = async (
     userPubkey: string,
     userAddress: string,
     userBuyBtcAmount: number,
@@ -466,7 +466,7 @@ export const generateUserBuyBtcPsbt = async (
     };
 };
 
-export const generateUserBuyBrc20Psbt = async (
+export const generateUserBuyBrc20SellBtcPsbt = async (
     poolAddress: string,
     poolPubkey: string,
     inscriptionId: string,
@@ -539,6 +539,10 @@ export const generateUserBuyBrc20Psbt = async (
     });
 
     return psbt.toHex();
+}
+
+export const generateuserBuyBtcSellBrc20Psbt = async () => {
+    
 }
 
 export const pushSwapPsbt = async (
