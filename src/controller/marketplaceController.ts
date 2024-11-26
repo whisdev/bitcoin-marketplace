@@ -8,7 +8,7 @@ import {
     combinePsbt,
     getBtcUtxoByAddress,
     getFeeRate,
-    getPrice,
+    getInscriptionData,
     getRuneUtxoByAddress,
 } from '../service/service';
 import {
@@ -42,7 +42,7 @@ export const generateUserBuyRunePsbt = async (
     userSendBtcAmount: number,
     poolAddress: string
 ) => {
-    const poolInfo = await PoolInfoModal.findOne({ address: poolAddress });
+    const poolInfo = await PoolInfoModal.findOne({ address: poolAddress, tokenType: "RUNE" });
     if (!poolInfo) {
         return {
             success: false,
@@ -60,7 +60,7 @@ export const generateUserBuyRunePsbt = async (
     }
 
     const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-        { address: poolAddress },
+        { address: poolAddress, tokenType: "RUNE" },
         {
             $set: {
                 isLocked: true,
@@ -132,7 +132,7 @@ export const generateUserBuyRunePsbt = async (
     // Check if enough rune is gathered
     if (tokenSum < requiredAmount) {
         const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-            { address: poolAddress },
+            { address: poolAddress, tokenType: "RUNE" },
             { $set: { isLocked: false } }
         )
 
@@ -204,7 +204,7 @@ export const generateUserBuyRunePsbt = async (
     // Check if enough BTC balance is available
     if (totalBtcAmount < fee) {
         const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-            { address: poolAddress },
+            { address: poolAddress, tokenType: "RUNE" },
             { $set: { isLocked: false } }
         )
 
@@ -247,7 +247,7 @@ export const generateUserBuyBtcPsbt = async (
     userSendRuneAmount: number,
     poolAddress: string,
 ) => {
-    const poolInfo = await PoolInfoModal.findOne({ address: poolAddress });
+    const poolInfo = await PoolInfoModal.findOne({ address: poolAddress, tokenType: "RUNE" });
     if (!poolInfo) {
         return {
             success: false,
@@ -265,7 +265,7 @@ export const generateUserBuyBtcPsbt = async (
     }
 
     const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-        { address: poolAddress },
+        { address: poolAddress, tokenType: "RUNE" },
         {
             $set: {
                 isLocked: true,
@@ -317,7 +317,7 @@ export const generateUserBuyBtcPsbt = async (
     // Check if enough rune is gathered
     if (tokenSum < requiredAmount) {
         const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-            { address: poolAddress },
+            { address: poolAddress, tokenType: "RUNE" },
             { $set: { isLocked: false } }
         )
 
@@ -383,7 +383,7 @@ export const generateUserBuyBtcPsbt = async (
     // Check if enough BTC balance is available
     if (totalBtcAmount < Math.floor(userBuyBtcAmount * 10 ** 8)) {
         const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-            { address: poolAddress },
+            { address: poolAddress, tokenType: "RUNE" },
             { $set: { isLocked: false } }
         )
 
@@ -435,7 +435,7 @@ export const generateUserBuyBtcPsbt = async (
     // Check if enough BTC balance is available
     if (userTotalBtcAmount < fee) {
         const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-            { address: poolAddress },
+            { address: poolAddress, tokenType: "RUNE" },
             { $set: { isLocked: false } }
         )
 
@@ -469,6 +469,81 @@ export const generateUserBuyBtcPsbt = async (
     };
 };
 
+export const generateUserBuyBrc20Psbt = async (
+    poolAddress: string,
+    poolPubkey: string,
+    inscriptionId: string,
+    userAddress: string,
+    userPubkey: string,
+    sendingBtcAmount: number
+) => {
+    const psbt = new bitcoin.Psbt({ network });
+
+    const poolResult = PoolInfoModal.find({
+        address: poolAddress,
+        tokenType: 'BRC20'
+    })
+
+    const btcUtxos = await getBtcUtxoByAddress(userAddress);
+    const inscriptionData = await getInscriptionData(
+        poolAddress,
+        inscriptionId
+    );
+
+    psbt.addInput({
+        hash: inscriptionData.txid,
+        index: inscriptionData.vout,
+        witnessUtxo: {
+            value: inscriptionData.satoshi,
+            script: Buffer.from(poolPubkey, "hex"),
+        },
+        tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33)
+    })
+
+    psbt.addOutput({
+        address: userAddress,
+        value: inscriptionData.satoshi,
+    });
+
+    psbt.addOutput({
+        address: poolAddress,
+        value: sendingBtcAmount
+    })
+
+    const feeRate = testVersion ? testFeeRate : await getFeeRate();
+
+    // add btc utxo input
+    let totalBtcAmount = 0;
+
+    for (const btcutxo of btcUtxos) {
+        const fee = calculateTxFee(psbt, feeRate) + sendingBtcAmount;
+        if (totalBtcAmount < fee && btcutxo.value > 10000) {
+            totalBtcAmount += btcutxo.value;
+
+            psbt.addInput({
+                hash: btcutxo.txid,
+                index: btcutxo.vout,
+                witnessUtxo: {
+                    value: btcutxo.value,
+                    script: Buffer.from(btcutxo.scriptpubkey as string, "hex"),
+                },
+                tapInternalKey: Buffer.from(userPubkey, "hex").slice(1, 33)
+            })
+        }
+    }
+
+    const fee = calculateTxFee(psbt, feeRate) + sendingBtcAmount;
+
+    if (totalBtcAmount < fee) throw "BTC balance is not enough";
+
+    psbt.addOutput({
+        address: userAddress,
+        value: totalBtcAmount - fee,
+    });
+
+    return psbt.toHex();
+}
+
 export const pushSwapPsbt = async (
     psbt: string,
     userSignedHexedPsbt: string,
@@ -483,7 +558,7 @@ export const pushSwapPsbt = async (
     swapType: number
 ) => {
     const isPoolAddressExisted = await PoolInfoModal.findOne({
-        address: poolAddress
+        address: poolAddress, tokenType: "RUNE"
     })
 
     if (!isPoolAddressExisted) {
@@ -514,7 +589,7 @@ export const pushSwapPsbt = async (
         // db features
         if (txId) {
             const poolInfoResult = await PoolInfoModal.findOne({
-                address: poolAddress
+                address: poolAddress, tokenType: "RUNE"
             })
 
             if (!poolInfoResult) {
@@ -533,7 +608,7 @@ export const pushSwapPsbt = async (
                 case 1:
                     updatedPoolInfo = await PoolInfoModal.findOneAndUpdate(
                         {
-                            address: poolAddress
+                            address: poolAddress, tokenType: "RUNE"
                         },
                         {
                             runeAmount: poolInfoResult.runeAmount + poolRuneAmount,
@@ -545,7 +620,7 @@ export const pushSwapPsbt = async (
 
                     if (!updatedPoolInfo) {
                         const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-                            { address: poolAddress },
+                            { address: poolAddress, tokenType: "RUNE" },
                             { $set: { isLocked: false } }
                         )
 
@@ -574,7 +649,7 @@ export const pushSwapPsbt = async (
                 case 2:
                     updatedPoolInfo = await PoolInfoModal.findOneAndUpdate(
                         {
-                            address: poolAddress
+                            address: poolAddress, tokenType: "RUNE"
                         },
                         {
                             runeAmount: poolInfoResult.runeAmount - poolRuneAmount,
@@ -586,7 +661,7 @@ export const pushSwapPsbt = async (
 
                     if (!updatedPoolInfo) {
                         const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-                            { address: poolAddress },
+                            { address: poolAddress, tokenType: "RUNE" },
                             { $set: { isLocked: false } }
                         )
 
@@ -636,7 +711,7 @@ export const pushSwapPsbt = async (
             };
         } else {
             const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-                { address: poolAddress },
+                { address: poolAddress, tokenType: "RUNE" },
                 { $set: { isLocked: false } }
             )
 
@@ -667,7 +742,7 @@ export const getMempoolBtcPrice = async () => {
 
 export const removeSwapTransaction = async (poolAddress: string, userAddress: string) => {
     const isPoolAddressExisted = await PoolInfoModal.findOne({
-        address: poolAddress
+        address: poolAddress, tokenType: "RUNE"
     })
 
     if (!isPoolAddressExisted) {
@@ -680,7 +755,7 @@ export const removeSwapTransaction = async (poolAddress: string, userAddress: st
 
     if (isPoolAddressExisted.isLocked && isPoolAddressExisted.lockedByAddress == userAddress) {
         await PoolInfoModal.findOneAndUpdate(
-            { address: poolAddress },
+            { address: poolAddress, tokenType: "RUNE" },
             { $set: { isLocked: false } }
         )
     }

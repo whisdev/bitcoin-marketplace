@@ -12,10 +12,12 @@ import { OPENAPI_UNISAT_TOKEN } from "../config/config";
 dotenv.config();
 
 export const getUserRuneInfo = async (userAddress: string) => {
+
     const response = await getRuneBalanceListByAddress(userAddress);
    
     const userRuneInfo = response;
     console.log('userRuneInfo :>> ', userRuneInfo);
+
     return {
         success: true,
         message: "get user rune info successfully",
