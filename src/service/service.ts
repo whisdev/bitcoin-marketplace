@@ -77,6 +77,95 @@ export function publicKeyToAddress(
     }
 }
 
+export const getInscriptionData = async (
+    address: string,
+    inscriptionId: string
+) => {
+    try {
+        const url = `${OPENAPI_UNISAT_URL}/v1/indexer/address/${address}/inscription-data`;
+
+        const config = {
+            headers: {
+                Authorization: `Bearer ${OPENAPI_UNISAT_TOKEN}`,
+            },
+        };
+        const res = await axios.get(url, { ...config });
+        const filterInscription = res.data.data.inscription.find(
+            (inscription: any) => inscription.inscriptionId === inscriptionId
+        );
+
+        if (!filterInscription) {
+            console.log("First Attempt get failed, Try second attempt. ==> ", filterInscription);
+            await delay(30000)
+            const res2 = await axios.get(url, { ...config });
+            const filterInscription2 = res2.data.data.inscription.find(
+                (inscription: any) => inscription.inscriptionId === inscriptionId
+            );
+            if (!filterInscription2) {
+                console.log("Second Attempt get failed, Try third attempt. ==>", filterInscription2);
+                await delay(30000)
+                const res3 = await axios.get(url, { ...config });
+                const filterInscriptio3 = res3.data.data.inscription.find(
+                    (inscription: any) => inscription.inscriptionId === inscriptionId
+                );
+                if (!filterInscriptio3) {
+                    console.log("Third Attempt get failed, Try fourth attempt. ==>", filterInscriptio3);
+                    await delay(40000)
+                    const res4 = await axios.get(url, { ...config });
+                    const filterInscriptio4 = res4.data.data.inscription.find(
+                        (inscription: any) => inscription.inscriptionId === inscriptionId
+                    );
+                    return filterInscriptio4.utxo;
+                }
+                return filterInscriptio3.utxo;
+            }
+            return filterInscription2.utxo;
+        }
+
+        return filterInscription.utxo;
+    } catch (error: any) {
+        console.log(error.data);
+        throw new Error("Can not fetch Inscriptions!!");
+    }
+};
+
+export const createBrc20Transfer = async (address: string, feeRate: number, ticker: string, amount: number) => {
+    const url = `${OPENAPI_UNISAT_URL}/v2/inscribe/order/create/brc20-transfer`;
+
+    const response = await axios.post(
+        url,
+        {
+            receiveAddress: address,
+            feeRate,
+            outputValue: 546,
+            devAddress: address,
+            devFee: 0,
+            brc20Ticker: ticker,
+            brc20Amount: amount,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${OPENAPI_UNISAT_TOKEN}`,
+            },
+        }
+    );
+
+    console.log("response ==> ", response.data);
+}
+
+export const getBrc20TransferableInscriptionUtxoByAddress = async (address: string, ticker: string) => {
+    const url = `${OPENAPI_UNISAT_URL}/v1/indexer/address/${address}/brc20/${ticker}/transferable-inscriptions`;
+    const config = {
+        headers: {
+            Authorization: `Bearer ${OPENAPI_UNISAT_TOKEN}`
+        }
+    }
+
+    const inscriptionList: any[] = (await axios.get(url, config)).data.data.detail;
+
+    return inscriptionList;
+}
+
 export const getBtcUtxoByAddress = async (address: string) => {
     const url = `${OPENAPI_UNISAT_URL}/v1/indexer/address/${address}/utxo-data`;
     const config = {
