@@ -27,15 +27,18 @@ import {
 } from '../config/config';
 import {
     filterTransactionInfo,
-    // getPoolSocket,
     updatePoolLockStatus
 } from "../utils/util";
-import TransactionInfoModal from "../model/RuneTransactionInfo";
+import { getBrc20PullInfo, getRunePullInfo } from "./poolController";
+
+import RuneTransactionInfoModal from "../model/RuneTransactionInfo";
+
 import { io } from "../server";
 import { LocalWallet } from "../service/localWallet";
 import { buffer } from "stream/consumers";
 import RunePoolInfoModal from "../model/RunePoolInfo";
-import Brc20PoolInfoModal from "src/model/Brc20PoolInfo";
+import Brc20PoolInfoModal from "../model/Brc20PoolInfo";
+import Brc20TransactionInfoModal from "../model/Brc20TransactionInfo";
 
 const ecc = require("@bitcoinerlab/secp256k1");
 const ECPair = ECPairFactory(ecc);
@@ -714,9 +717,22 @@ export const transferBrc20 = async (
                 }
             )
 
+            const newBrc20Transaction = new Brc20TransactionInfoModal(
+                {
+                    poolAddress: poolAddress,
+                    userAddress: userAddress,
+                    txId: txId,
+                    tokenAmount: sendBrc20Amount,
+                    btcAmount: receiveBtcAmount,
+                    swapType: 1,
+                }
+            )
+
+            await newBrc20Transaction.save();
+
             if (!updatedPoolInfo) {
-                const poolLockedResult = await Brc20PoolInfoModal.findOneAndUpdate(
-                    { address: poolAddress},
+                await Brc20PoolInfoModal.findOneAndUpdate(
+                    { address: poolAddress },
                     { $set: { isLocked: false } }
                 )
 
@@ -727,35 +743,8 @@ export const transferBrc20 = async (
                 };
             }
 
-            // // newTxInfo = new TransactionInfoModal({
-            // //     poolAddress: poolAddress,
-            // //     userAddress: userAddress,
-            // //     swapType: 1,
-            // //     vout: 1,
-            // //     txId: txId,
-            // //     btcAmount: btcAmount,
-            // //     poolRuneAmount: poolRuneAmount,
-            // //     userRuneAmount: userRuneAmount,
-            // // })
-
-            // // await newTxInfo.save()
-
-            // // if (usedTransactionList.length > 0) {
-            // //     const transactionInfoResult = await TransactionInfoModal.updateMany(
-            // //         {
-            // //             poolAddress: poolAddress,
-            // //             txId: { $in: usedTransactionList }
-            // //         },
-            // //         {
-            // //             $set: {
-            // //                 isUsed: true
-            // //             }
-            // //         }
-            // //     );
-            // // }
-
-            // // socket connection with Front end of price, volume, runeAmount, btcAmount
-            // io.emit("brc20-pool-socket", getPoolSocket())
+            // socket connection with Front end of price, volume, runeAmount, btcAmount
+            io.emit("brc20-pool-socket", getBrc20PullInfo())
 
             return {
                 success: true,
@@ -763,7 +752,7 @@ export const transferBrc20 = async (
                 payload: txId,
             };
         } else {
-            const poolLockedResult = await Brc20PoolInfoModal.findOneAndUpdate(
+            await Brc20PoolInfoModal.findOneAndUpdate(
                 { address: poolAddress },
                 { $set: { isLocked: false } }
             )
@@ -860,7 +849,7 @@ export const pushRuneSwapPsbt = async (
                         };
                     }
 
-                    newTxInfo = new TransactionInfoModal({
+                    newTxInfo = new RuneTransactionInfoModal({
                         poolAddress: poolAddress,
                         userAddress: userAddress,
                         swapType: 1,
@@ -901,7 +890,7 @@ export const pushRuneSwapPsbt = async (
                         };
                     }
 
-                    newTxInfo = new TransactionInfoModal({
+                    newTxInfo = new RuneTransactionInfoModal({
                         poolAddress: poolAddress,
                         userAddress: userAddress,
                         swapType: 2,
@@ -917,7 +906,7 @@ export const pushRuneSwapPsbt = async (
             }
 
             if (usedTransactionList.length > 0) {
-                const transactionInfoResult = await TransactionInfoModal.updateMany(
+                const transactionInfoResult = await RuneTransactionInfoModal.updateMany(
                     {
                         poolAddress: poolAddress,
                         txId: { $in: usedTransactionList }
@@ -931,7 +920,7 @@ export const pushRuneSwapPsbt = async (
             }
 
             // socket connection with Front end of price, volume, runeAmount, btcAmount
-            // io.emit("pool-socket", getPoolSocket())
+            io.emit("rune-pool-socket", getRunePullInfo())
 
             return {
                 success: true,

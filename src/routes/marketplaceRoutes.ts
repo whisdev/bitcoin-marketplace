@@ -108,7 +108,6 @@ marketplaceRouter.post('/removeSwapTx', async (req, res, next) => {
     }
 });
 
-
 // remove swap transaction
 marketplaceRouter.get('/getMempoolBtcPrice', async (req, res, next) => {
     try {

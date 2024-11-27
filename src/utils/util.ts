@@ -1,16 +1,17 @@
 import mempoolJS from "@mempool/mempool.js";
 import axios from "axios";
 
-import TransactionInfoModal from "../model/RuneTransactionInfo";
 import {
   brc20LockTime,
   runeLockTime,
   testVersion
 } from "../config/config";
 
+import RuneTransactionInfoModal from "../model/RuneTransactionInfo";
+import Brc20TransactionInfoModal from "../model/Brc20TransactionInfo";
 import SwapHistoryModal from "../model/SwapHistory";
-import RunePoolInfoModal from "src/model/RunePoolInfo";
-import Brc20PoolInfoModal from "src/model/Brc20PoolInfo";
+import RunePoolInfoModal from "../model/RunePoolInfo";
+import Brc20PoolInfoModal from "../model/Brc20PoolInfo";
 
 import { io } from "../server";
 import { getPrice } from "../service/service";
@@ -49,7 +50,7 @@ export const filterTransactionInfo = async (
   poolAddress: string,
   txList: Array<string>
 ) => {
-  const txInfoList = await TransactionInfoModal.find({
+  const txInfoList = await RuneTransactionInfoModal.find({
     poolAddress: poolAddress
   })
 
@@ -85,31 +86,51 @@ export const checkConfirmedTx = async () => {
             : `https://mempool.space/api/block/${blockId}/txids`
         );
 
-        const unconfirmedTxs = await TransactionInfoModal.find();
+        const unconfirmedRuneTxs = await RuneTransactionInfoModal.find();
+        const unconfirmedBrc20Txs = await Brc20TransactionInfoModal.find();
 
         console.log("after mempool block txids");
 
-        unconfirmedTxs.map(async (unconfirmedTx) => {
+        unconfirmedRuneTxs.map(async (unconfirmedTx) => {
           if (txIds.data.includes(unconfirmedTx.txId)) {
             const newSwapHistory = new SwapHistoryModal({
               poolAddress: unconfirmedTx.poolAddress,
               txId: unconfirmedTx.txId,
-              vout: unconfirmedTx.vout,
-              runeAmount: unconfirmedTx.poolRuneAmount,
+              // vout: unconfirmedTx.vout,
+              tokenAmount: unconfirmedTx.poolRuneAmount,
               btcAmount: unconfirmedTx.btcAmount,
+              tokenType: "RUNE",
               swapType: unconfirmedTx.swapType,
               userAddress: unconfirmedTx.userAddress
             })
 
             await newSwapHistory.save();
-
-            const updatedBid = await TransactionInfoModal.deleteOne({
+            await RuneTransactionInfoModal.deleteOne({
               txId: unconfirmedTx.txId
             });
           }
         });
 
-        // io.emit("mempool-socket", await getHistorySocket());
+        unconfirmedBrc20Txs.map(async (unconfirmedTx) => {
+          if (txIds.data.includes(unconfirmedTx.txId)) {
+            const newSwapHistory = new SwapHistoryModal({
+              poolAddress: unconfirmedTx.poolAddress,
+              txId: unconfirmedTx.txId,
+              tokenAmount: unconfirmedTx.tokenAmount,
+              btcAmount: unconfirmedTx.btcAmount,
+              tokenType: "BRC20",
+              swapType: unconfirmedTx.swapType,
+              userAddress: unconfirmedTx.userAddress
+            })
+
+            await newSwapHistory.save();
+            await Brc20TransactionInfoModal.deleteOne({
+              txId: unconfirmedTx.txId
+            });
+          }
+        });
+
+        io.emit("mempool-socket", await getHistorySocket());
         io.emit("mempool-price-socket", await getPrice());
       }
     });
@@ -125,18 +146,18 @@ export const updatePoolLockStatus = async (
   userAddress: string,
 ) => {
   if (tokenType == "RUNE") {
-    const poolInfoResult = await RunePoolInfoModal.findOne({address: poolAddress});
+    const poolInfoResult = await RunePoolInfoModal.findOne({ address: poolAddress });
 
     setTimeout(async () => {
       if (poolInfoResult?.isLocked && poolInfoResult.lockedByAddress == userAddress) {
         await RunePoolInfoModal.findOneAndUpdate(
-          { address: poolAddress},
+          { address: poolAddress },
           { $set: { isLocked: false } }
         )
       }
     }, runeLockTime * 10 ** 3);
   } else {
-    const poolInfoResult = await Brc20PoolInfoModal.findOne({address: poolAddress});
+    const poolInfoResult = await Brc20PoolInfoModal.findOne({ address: poolAddress });
 
     setTimeout(async () => {
       if (poolInfoResult?.isLocked && poolInfoResult.lockedByAddress == userAddress) {
@@ -149,44 +170,27 @@ export const updatePoolLockStatus = async (
   }
 }
 
-// // socket about pool info
-// export const getPoolSocket = async () => {
-//   const poolInfo = await PoolInfoModal.find();
+// socket about tx info
+export const getHistorySocket = async () => {
+  const historyInfo = await SwapHistoryModal.find();
+  const runePoolInfo = await RunePoolInfoModal.find();
+  const brc20PoolInfo = await Brc20PoolInfoModal.find();
 
-//   const poolInfoSet = poolInfo.map(item => {
-//     return {
-//       poolAddress: item.address,
-//       runeId: item.runeId,
-//       runeAmount: item.runeAmount,
-//       btcAmount: item.btcAmount,
-//       volume: item.volume,
-//       ticker: item.ticker,
-//       price: (item.btcAmount / item.runeAmount).toFixed(6),
-//       createdAt: item.createdAt
-//     }
-//   });
+  const historyInfoSet = historyInfo.map(item => {
+    const matchedPool = runePoolInfo.find(pool => pool.address == item.poolAddress && item.tokenType == "RUNE") || brc20PoolInfo.find(pool => pool.address == item.poolAddress && item.tokenType == "BRC20")
 
-//   return poolInfoSet;
-// }
+    return {
+      ticker: matchedPool?.ticker,
+      poolAddress: item.poolAddress,
+      tokenAmount: item.tokenAmount,
+      tokenType: item.tokenType,
+      btcAmount: item.btcAmount,
+      userAddress: item.userAddress,
+      swapType: item.swapType,
+      txId: item.txId,
+      createdAt: item.createdAt.getDate()
+    }
+  });
 
-// // socket about tx info
-// export const getHistorySocket = async () => {
-//   const historyInfo = await SwapHistoryModal.find();
-//   const poolInfo = await PoolInfoModal.find();
-
-//   const historyInfoSet = historyInfo.map(item => {
-//     const matchedPool = poolInfo.find(pool => pool.address == item.poolAddress)
-//     return {
-//       ticker: matchedPool?.ticker,
-//       poolAddress: item.poolAddress,
-//       runeAmount: item.runeAmount,
-//       btcAmount: item.btcAmount,
-//       userAddress: item.userAddress,
-//       swapType: item.swapType,
-//       txId: item.txId,
-//       createdAt: item.createdAt.getDate()
-//     }
-//   });
-
-//   return historyInfoSet;
-// }
+  return historyInfoSet;
+}
