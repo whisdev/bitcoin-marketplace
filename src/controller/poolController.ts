@@ -4,38 +4,54 @@ import dotenv from 'dotenv';
 const ecc = require("@bitcoinerlab/secp256k1");
 bitcoin.initEccLib(ecc);
 
-import PoolInfoModal from "../model/PoolInfo";
+import RunePoolInfoModal from "../model/RunePoolInfo";
+import Brc20PoolInfoModal from "../model/Brc20PoolInfo";
 
 dotenv.config();
 
 export const getPullInfo = async () => {
-  const poolInfo = await PoolInfoModal.find();
+  const runePoolInfo = await RunePoolInfoModal.find();
+  const brc20PoolInfo = await Brc20PoolInfoModal.find();
 
-  if (poolInfo) {
-    const poolInfoSet = poolInfo.map(item => {
+  let runePoolInfoSet;
+  let brc20PoolInfoSet;
+
+  if (runePoolInfo) {
+    runePoolInfoSet = runePoolInfo.map(item => {
       return {
         poolAddress: item.address,
         runeId: item.runeId,
-        runeAmount: item.runeAmount,
+        runeAmount: item.tokenAmount,
         btcAmount: item.btcAmount,
         ticker: item.ticker,
-        tokenType: item.tokenType,
-        price: (item.btcAmount / item.runeAmount).toFixed(6),
+        price: (item.btcAmount / item.tokenAmount).toFixed(6),
         createdAt: item.createdAt
       }
-    }
-    );
-
-    return {
-      success: true,
-      message: "Fetch All Info",
-      payload: poolInfoSet,
-    };
-  } else {
-    return {
-      success: false,
-      message: "There is no pool",
-      payload: undefined,
-    };
+    });
   }
+
+  if (brc20PoolInfo) {
+    brc20PoolInfoSet = brc20PoolInfo.map(item => {
+      return {
+        poolAddress: item.address,
+        ticker: item.ticker,
+        safeTokenAmount: item.safeTokenAmount,
+        unsafeTokenAmount: item.unsafeTokenAmount,
+        btcAmount: item.btcAmount,
+        price: (item.btcAmount / (item.safeTokenAmount + item.unsafeTokenAmount)).toFixed(6),
+        createdAt: item.createdAt
+      }
+    })
+  }
+
+  return {
+    success: true,
+    message: "Fetch All Info",
+    payload: {
+      runePoolInfo: runePoolInfoSet,
+      brc20PoolInfo: brc20PoolInfoSet
+    },
+  };
+
+
 }

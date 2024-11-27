@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const TransactionInfo = new mongoose.Schema({
+const RuneTransactionInfo = new mongoose.Schema({
     poolAddress: { type: String, required: true },
     userAddress: {type:String, required: true},
     txId: { type: String, required: true },
@@ -13,6 +13,6 @@ const TransactionInfo = new mongoose.Schema({
     createdAt: { type: Date, default: new Date() },
 });
 
-const TransactionInfoModal = mongoose.model("TransactionInfo", TransactionInfo);
+const RuneTransactionInfoModal = mongoose.model("RuneTransactionInfo", RuneTransactionInfo);
 
-export default TransactionInfoModal;
+export default RuneTransactionInfoModal;

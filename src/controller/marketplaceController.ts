@@ -7,29 +7,35 @@ import {
     calculateTxFee,
     combinePsbt,
     createOrderBrc20Transfer,
+    delay,
+    getBrc20TickerInfoByAddress,
     getBrc20TransferableInscriptionUtxoByAddress,
     getBtcUtxoByAddress,
     getFeeRate,
     getInscriptionData,
     getPrice,
     getRuneUtxoByAddress,
+    pushRawTx,
 } from '../service/service';
 import {
     testVersion,
     testFeeRate,
     STANDARD_RUNE_UTXO_VALUE,
     SEND_UTXO_FEE_LIMIT,
-    lockTime,
+    runeLockTime,
+    brc20LockTime,
 } from '../config/config';
 import {
     filterTransactionInfo,
-    getPoolSocket,
+    // getPoolSocket,
     updatePoolLockStatus
 } from "../utils/util";
-import PoolInfoModal from "../model/PoolInfo";
-import TransactionInfoModal from "../model/TransactionInfo";
+import TransactionInfoModal from "../model/RuneTransactionInfo";
 import { io } from "../server";
 import { LocalWallet } from "../service/localWallet";
+import { buffer } from "stream/consumers";
+import RunePoolInfoModal from "../model/RunePoolInfo";
+import Brc20PoolInfoModal from "src/model/Brc20PoolInfo";
 
 const ecc = require("@bitcoinerlab/secp256k1");
 const ECPair = ECPairFactory(ecc);
@@ -45,7 +51,7 @@ export const generateUserBuyRuneSellBtcPsbt = async (
     userSendBtcAmount: number,
     poolAddress: string
 ) => {
-    const poolInfo = await PoolInfoModal.findOne({ address: poolAddress, tokenType: "RUNE" });
+    const poolInfo = await RunePoolInfoModal.findOne({ address: poolAddress });
     if (!poolInfo) {
         return {
             success: false,
@@ -57,13 +63,13 @@ export const generateUserBuyRuneSellBtcPsbt = async (
     if (poolInfo.isLocked) {
         return {
             success: false,
-            message: `Pool is locked. you can access ${lockTime}sec later`,
+            message: `Pool is locked. you can access ${runeLockTime}sec later`,
             payload: undefined
         }
     }
 
-    await PoolInfoModal.findOneAndUpdate(
-        { address: poolAddress, tokenType: "RUNE" },
+    await RunePoolInfoModal.findOneAndUpdate(
+        { address: poolAddress },
         {
             $set: {
                 isLocked: true,
@@ -72,7 +78,7 @@ export const generateUserBuyRuneSellBtcPsbt = async (
         }
     )
 
-    await updatePoolLockStatus(poolAddress, userAddress);
+    await updatePoolLockStatus(poolAddress, "RUNE", userAddress);
 
     const { divisibility, publickey: poolPubkey, runeId } = poolInfo;
     const requiredAmount = userBuyRuneAmount * 10 ** divisibility;
@@ -134,8 +140,8 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 
     // Check if enough rune is gathered
     if (tokenSum < requiredAmount) {
-        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-            { address: poolAddress, tokenType: "RUNE" },
+        const poolLockedResult = await RunePoolInfoModal.findOneAndUpdate(
+            { address: poolAddress },
             { $set: { isLocked: false } }
         )
 
@@ -211,8 +217,8 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 
     // Check if enough BTC balance is available
     if (totalBtcAmount < fee) {
-        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-            { address: poolAddress, tokenType: "RUNE" },
+        const poolLockedResult = await RunePoolInfoModal.findOneAndUpdate(
+            { address: poolAddress },
             { $set: { isLocked: false } }
         )
 
@@ -250,7 +256,7 @@ export const generateUserBuyBtcSellRunePsbt = async (
     userSendRuneAmount: number,
     poolAddress: string,
 ) => {
-    const poolInfo = await PoolInfoModal.findOne({ address: poolAddress, tokenType: "RUNE" });
+    const poolInfo = await RunePoolInfoModal.findOne({ address: poolAddress });
     if (!poolInfo) {
         return {
             success: false,
@@ -262,13 +268,13 @@ export const generateUserBuyBtcSellRunePsbt = async (
     if (poolInfo.isLocked) {
         return {
             success: false,
-            message: `Pool is locked. you can access ${lockTime}s later`,
+            message: `Pool is locked. you can access ${runeLockTime}s later`,
             payload: undefined
         }
     }
 
-    const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-        { address: poolAddress, tokenType: "RUNE" },
+    await RunePoolInfoModal.findOneAndUpdate(
+        { address: poolAddress },
         {
             $set: {
                 isLocked: true,
@@ -277,7 +283,7 @@ export const generateUserBuyBtcSellRunePsbt = async (
         }
     )
 
-    await updatePoolLockStatus(poolAddress, userAddress);
+    await updatePoolLockStatus(poolAddress, "RUNE", userAddress);
 
     const { runeId, divisibility, publickey: poolPubkey } = poolInfo;
     const requiredAmount = userSendRuneAmount * 10 ** divisibility;
@@ -319,8 +325,8 @@ export const generateUserBuyBtcSellRunePsbt = async (
 
     // Check if enough rune is gathered
     if (tokenSum < requiredAmount) {
-        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-            { address: poolAddress, tokenType: "RUNE" },
+        const poolLockedResult = await RunePoolInfoModal.findOneAndUpdate(
+            { address: poolAddress },
             { $set: { isLocked: false } }
         )
 
@@ -385,8 +391,8 @@ export const generateUserBuyBtcSellRunePsbt = async (
 
     // Check if enough BTC balance is available
     if (totalBtcAmount < Math.floor(userBuyBtcAmount * 10 ** 8)) {
-        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-            { address: poolAddress, tokenType: "RUNE" },
+        const poolLockedResult = await RunePoolInfoModal.findOneAndUpdate(
+            { address: poolAddress },
             { $set: { isLocked: false } }
         )
 
@@ -437,8 +443,8 @@ export const generateUserBuyBtcSellRunePsbt = async (
 
     // Check if enough BTC balance is available
     if (userTotalBtcAmount < fee) {
-        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-            { address: poolAddress, tokenType: "RUNE" },
+        const poolLockedResult = await RunePoolInfoModal.findOneAndUpdate(
+            { address: poolAddress },
             { $set: { isLocked: false } }
         )
 
@@ -482,10 +488,7 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
     const psbt = new bitcoin.Psbt({ network });
     const feeRate = testVersion ? testFeeRate : await getFeeRate();
 
-    const poolInfoResult = await PoolInfoModal.findOne({
-        address: poolAddress,
-        tokenType: 'BRC20'
-    })
+    const poolInfoResult = await Brc20PoolInfoModal.findOne({ address: poolAddress })
 
     if (!poolInfoResult) {
         return {
@@ -495,93 +498,50 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
         }
     }
 
-    const ticker = poolInfoResult.ticker;
-    const poolPubkey = poolInfoResult.publickey;
-
-    const inscriptionList = await getBrc20TransferableInscriptionUtxoByAddress(poolAddress, ticker);
-    const btcUtxos = await getBtcUtxoByAddress(userAddress);
-
-    const existedInscription = inscriptionList.find(inscription => inscription.data.tick.toUpperCase() == ticker.toUpperCase() && inscription.data.amt == userBuyBrc20Amount);
-
-    if (!existedInscription) {
-        const orderInscriptionInfo = await createOrderBrc20Transfer(poolAddress, feeRate, ticker, userBuyBrc20Amount)
-
-        const payAddress = orderInscriptionInfo.payAddress;
-        const inscriptionPayAmount = orderInscriptionInfo.amount;
-
-        psbt.addOutput({
-            address: payAddress,
-            value: inscriptionPayAmount
-        })
-
-        psbt.addOutput({
-            address: poolAddress,
-            value: userSendBtcAmount
-        })
-
-        // add btc utxo input
-        let totalBtcAmount = 0;
-
-        for (const btcutxo of btcUtxos) {
-            const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
-            if (totalBtcAmount < fee && btcutxo.value > 10000) {
-                totalBtcAmount += btcutxo.value;
-
-                psbt.addInput({
-                    hash: btcutxo.txid,
-                    index: btcutxo.vout,
-                    witnessUtxo: {
-                        value: btcutxo.value,
-                        script: Buffer.from(btcutxo.scriptpubkey as string, "hex"),
-                    },
-                    tapInternalKey: Buffer.from(userPubkey, "hex").slice(1, 33)
-                })
-            }
-        }
-
-        const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
-
-        if (totalBtcAmount < fee) throw "BTC balance is not enough";
-
-        psbt.addOutput({
-            address: userAddress,
-            value: totalBtcAmount - fee,
-        });
-
+    if (poolInfoResult.isLocked) {
         return {
-            success: true,
-            message: `PSBT generated successfully`,
-            payload: {
-                psbt: psbt.toHex(),
-                userPubkey,
-                userAddress,
-                userBuyBrc20Amount,
-                userSendBtcAmount,
-                poolAddress,
-                signedStatus: 'INSCRIBE'
-            }
+            success: false,
+            message: `Pool is locked. you can access ${brc20LockTime}s later`,
+            payload: undefined
         }
     }
 
-    const inscriptionData = await getInscriptionData(
-        poolAddress,
-        existedInscription.inscriptionId
-    );
+    await Brc20PoolInfoModal.findOneAndUpdate(
+        { address: poolAddress },
+        {
+            $set: {
+                isLocked: true,
+                lockedByAddress: userAddress
+            }
+        }
+    )
 
-    psbt.addInput({
-        hash: inscriptionData.txid,
-        index: inscriptionData.vout,
-        witnessUtxo: {
-            value: inscriptionData.satoshi,
-            script: Buffer.from(poolPubkey, "hex"),
-        },
-        tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33)
-    })
+    await updatePoolLockStatus(poolAddress, "BRC20", userAddress);
+
+    const ticker = poolInfoResult.ticker;
+    const poolPubkey = poolInfoResult.publickey;
+
+    const brc20TickerInfo = await getBrc20TickerInfoByAddress(poolAddress, ticker);
+
+    if (brc20TickerInfo.availableBalance < userBuyBrc20Amount) {
+        return {
+            success: false,
+            message: `No sufficient available BRC20 amount`,
+            payload: undefined
+        }
+    }
+
+    const btcUtxos = await getBtcUtxoByAddress(userAddress);
+
+    const orderInscriptionInfo = await createOrderBrc20Transfer(poolAddress, feeRate, ticker, userBuyBrc20Amount)
+
+    const payAddress = orderInscriptionInfo.payAddress;
+    const inscriptionPayAmount = orderInscriptionInfo.amount;
 
     psbt.addOutput({
-        address: userAddress,
-        value: inscriptionData.satoshi,
-    });
+        address: payAddress,
+        value: inscriptionPayAmount
+    })
 
     psbt.addOutput({
         address: poolAddress,
@@ -592,7 +552,7 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
     let totalBtcAmount = 0;
 
     for (const btcutxo of btcUtxos) {
-        const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
+        const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount + inscriptionPayAmount;
         if (totalBtcAmount < fee && btcutxo.value > 10000) {
             totalBtcAmount += btcutxo.value;
 
@@ -608,7 +568,7 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
         }
     }
 
-    const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
+    const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount + inscriptionPayAmount;
 
     if (totalBtcAmount < fee) throw "BTC balance is not enough";
 
@@ -617,12 +577,215 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
         value: totalBtcAmount - fee,
     });
 
-    return psbt.toHex();
+    return {
+        success: true,
+        message: `PSBT generated successfully`,
+        payload: {
+            psbt: psbt.toHex(),
+            userPubkey,
+            userAddress,
+            userBuyBrc20Amount,
+            userSendBtcAmount,
+            poolAddress,
+        }
+    }
+}
+
+export const transferBrc20 = async (
+    userPubkey: string,
+    userAddress: string,
+    sendBrc20Amount: number,
+    receiveBtcAmount: number,
+    poolAddress: string
+) => {
+    const isPoolAddressExisted = await Brc20PoolInfoModal.findOne({ address: poolAddress })
+
+    if (!isPoolAddressExisted) {
+        return {
+            success: false,
+            message: `No pool found at address ${poolAddress}`,
+            payload: undefined,
+        };
+    }
+
+    if (isPoolAddressExisted.isLocked && isPoolAddressExisted.lockedByAddress == userAddress) {
+        delay(20000);
+
+        const feeRate = testVersion ? testFeeRate : await getFeeRate();
+        const poolInfoResult = await Brc20PoolInfoModal.findOne({ address: poolAddress })
+
+        if (!poolInfoResult) {
+            return {
+                success: false,
+                message: `No pool found at address ${poolAddress}`,
+                payload: undefined
+            }
+        }
+
+        const ticker = poolInfoResult.ticker;
+        const poolPubkey = poolInfoResult.publickey;
+        const poolPrivkey = poolInfoResult.privatekey;
+        const poolWallet = new LocalWallet(poolPrivkey, testVersion ? 1 : 0);
+
+        const psbt = new bitcoin.Psbt({ network });
+
+        const inscriptionList = await getBrc20TransferableInscriptionUtxoByAddress(poolAddress, ticker);
+        const btcUtxos = await getBtcUtxoByAddress(poolAddress);
+
+        const existedInscription = inscriptionList.find(inscription => inscription.data.tick.toUpperCase() == ticker.toUpperCase() && inscription.data.amt == sendBrc20Amount);
+
+        if (!existedInscription) {
+            return {
+                success: false,
+                message: `No inscription of ${ticker} - ${sendBrc20Amount} at address ${userAddress}`,
+                payload: undefined
+            }
+        }
+
+        const inscriptionData = await getInscriptionData(
+            poolAddress,
+            existedInscription.inscriptionId
+        )
+
+        psbt.addInput({
+            hash: inscriptionData.txid,
+            index: inscriptionData.vout,
+            witnessUtxo: {
+                value: inscriptionData.satoshi,
+                script: Buffer.from(poolPubkey, "hex")
+            },
+            tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33)
+        })
+
+        psbt.addOutput({
+            address: userAddress,
+            value: inscriptionData.satoshi
+        })
+
+        // add btc utxo input
+        let totalBtcAmount = 0;
+
+        for (const btcutxo of btcUtxos) {
+            const fee = calculateTxFee(psbt, feeRate);
+            if (totalBtcAmount < fee && btcutxo.value > 10000) {
+                totalBtcAmount += btcutxo.value;
+
+                psbt.addInput({
+                    hash: btcutxo.txid,
+                    index: btcutxo.vout,
+                    witnessUtxo: {
+                        value: btcutxo.value,
+                        script: Buffer.from(btcutxo.scriptpubkey as string, "hex"),
+                    },
+                    tapInternalKey: Buffer.from(userPubkey, "hex").slice(1, 33)
+                })
+            }
+        }
+
+        const fee = calculateTxFee(psbt, feeRate);
+
+        if (totalBtcAmount < fee) throw "BTC balance is not enough";
+
+        psbt.addOutput({
+            address: poolAddress,
+            value: totalBtcAmount - fee,
+        });
+
+        const poolSignedPsbt = await poolWallet.signPsbt(psbt)
+        const tx = poolSignedPsbt.extractTransaction();
+        const txHex = tx.toHex();
+
+        const txId = await pushRawTx(txHex);
+
+        // db features
+        if (txId) {
+            let updatedPoolInfo: any;
+            let newTxInfo: any;
+
+            updatedPoolInfo = await Brc20PoolInfoModal.findOneAndUpdate(
+                { address: poolAddress },
+                {
+                    $set: {
+                        safeTokenAmount: isPoolAddressExisted.safeTokenAmount - sendBrc20Amount,
+                        btcAmount: isPoolAddressExisted.btcAmount + receiveBtcAmount,
+                        volume: isPoolAddressExisted.volume + receiveBtcAmount,
+                        isLocked: false
+                    }
+                }
+            )
+
+            if (!updatedPoolInfo) {
+                const poolLockedResult = await Brc20PoolInfoModal.findOneAndUpdate(
+                    { address: poolAddress},
+                    { $set: { isLocked: false } }
+                )
+
+                return {
+                    success: false,
+                    message: `No pool found at address ${poolAddress}`,
+                    payload: undefined
+                };
+            }
+
+            // // newTxInfo = new TransactionInfoModal({
+            // //     poolAddress: poolAddress,
+            // //     userAddress: userAddress,
+            // //     swapType: 1,
+            // //     vout: 1,
+            // //     txId: txId,
+            // //     btcAmount: btcAmount,
+            // //     poolRuneAmount: poolRuneAmount,
+            // //     userRuneAmount: userRuneAmount,
+            // // })
+
+            // // await newTxInfo.save()
+
+            // // if (usedTransactionList.length > 0) {
+            // //     const transactionInfoResult = await TransactionInfoModal.updateMany(
+            // //         {
+            // //             poolAddress: poolAddress,
+            // //             txId: { $in: usedTransactionList }
+            // //         },
+            // //         {
+            // //             $set: {
+            // //                 isUsed: true
+            // //             }
+            // //         }
+            // //     );
+            // // }
+
+            // // socket connection with Front end of price, volume, runeAmount, btcAmount
+            // io.emit("brc20-pool-socket", getPoolSocket())
+
+            return {
+                success: true,
+                message: `Push swap psbt successfully`,
+                payload: txId,
+            };
+        } else {
+            const poolLockedResult = await Brc20PoolInfoModal.findOneAndUpdate(
+                { address: poolAddress },
+                { $set: { isLocked: false } }
+            )
+
+            return {
+                success: false,
+                message: `No pool found at address ${poolAddress}`,
+                payload: undefined
+            };
+        }
+    } else {
+        return {
+            success: false,
+            message: `This user keep signing over ${brc20LockTime} sec`,
+            payload: undefined,
+        };
+    }
 }
 
 export const generateuserBuyBtcSellBrc20Psbt = async () => { }
 
-export const pushSwapPsbt = async (
+export const pushRuneSwapPsbt = async (
     psbt: string,
     userSignedHexedPsbt: string,
     poolRuneAmount: number,
@@ -635,9 +798,7 @@ export const pushSwapPsbt = async (
     usedTransactionList: string[],
     swapType: number
 ) => {
-    const isPoolAddressExisted = await PoolInfoModal.findOne({
-        address: poolAddress, tokenType: "RUNE"
-    })
+    const isPoolAddressExisted = await RunePoolInfoModal.findOne({ address: poolAddress })
 
     if (!isPoolAddressExisted) {
         return {
@@ -658,25 +819,13 @@ export const pushSwapPsbt = async (
 
         const poolWallet = new LocalWallet(privateKey as string, testVersion ? 1 : 0);
 
-        // const poolSignedPsbt = await poolWallet.signPsbt(userSignedPsbt, poolInputArray)
-        const poolSignedPsbt = await poolWallet.signPsbt(userSignedPsbt, [0])
+        const poolSignedPsbt = await poolWallet.signPsbt(userSignedPsbt, poolInputArray)
 
         // broadcast tx
         const txId = await combinePsbt(psbt, poolSignedPsbt.toHex(), userSignedPsbt.toHex());
 
         // db features
         if (txId) {
-            const poolInfoResult = await PoolInfoModal.findOne({
-                address: poolAddress, tokenType: "RUNE"
-            })
-
-            if (!poolInfoResult) {
-                return {
-                    success: false,
-                    message: `No pool found at address ${poolAddress}`,
-                    payload: undefined
-                }
-            }
 
             let updatedPoolInfo: any;
             let newTxInfo: any;
@@ -684,21 +833,23 @@ export const pushSwapPsbt = async (
             switch (swapType) {
                 // user buy btc and sell rune
                 case 1:
-                    updatedPoolInfo = await PoolInfoModal.findOneAndUpdate(
+                    updatedPoolInfo = await RunePoolInfoModal.findOneAndUpdate(
                         {
-                            address: poolAddress, tokenType: "RUNE"
+                            address: poolAddress
                         },
                         {
-                            runeAmount: poolInfoResult.runeAmount + poolRuneAmount,
-                            btcAmount: poolInfoResult.btcAmount - btcAmount,
-                            volume: poolInfoResult.volume + btcAmount,
-                            isLocked: false
+                            $set: {
+                                runeAmount: isPoolAddressExisted.tokenAmount + userRuneAmount,
+                                btcAmount: isPoolAddressExisted.btcAmount - btcAmount,
+                                volume: isPoolAddressExisted.volume + btcAmount,
+                                isLocked: false
+                            }
                         }
                     )
 
                     if (!updatedPoolInfo) {
-                        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-                            { address: poolAddress, tokenType: "RUNE" },
+                        const poolLockedResult = await RunePoolInfoModal.findOneAndUpdate(
+                            { address: poolAddress },
                             { $set: { isLocked: false } }
                         )
 
@@ -725,21 +876,21 @@ export const pushSwapPsbt = async (
 
                 // user buy rune and receive btc
                 case 2:
-                    updatedPoolInfo = await PoolInfoModal.findOneAndUpdate(
+                    updatedPoolInfo = await RunePoolInfoModal.findOneAndUpdate(
+                        { address: poolAddress },
                         {
-                            address: poolAddress, tokenType: "RUNE"
-                        },
-                        {
-                            runeAmount: poolInfoResult.runeAmount - poolRuneAmount,
-                            btcAmount: poolInfoResult.btcAmount + btcAmount,
-                            volume: poolInfoResult.volume + btcAmount,
-                            isLocked: false
+                            $set: {
+                                runeAmount: isPoolAddressExisted.tokenAmount - userRuneAmount,
+                                btcAmount: isPoolAddressExisted.btcAmount + btcAmount,
+                                volume: isPoolAddressExisted.volume + btcAmount,
+                                isLocked: false
+                            }
                         }
                     )
 
                     if (!updatedPoolInfo) {
-                        const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-                            { address: poolAddress, tokenType: "RUNE" },
+                        const poolLockedResult = await RunePoolInfoModal.findOneAndUpdate(
+                            { address: poolAddress },
                             { $set: { isLocked: false } }
                         )
 
@@ -780,7 +931,7 @@ export const pushSwapPsbt = async (
             }
 
             // socket connection with Front end of price, volume, runeAmount, btcAmount
-            io.emit("pool-socket", getPoolSocket())
+            // io.emit("pool-socket", getPoolSocket())
 
             return {
                 success: true,
@@ -788,8 +939,8 @@ export const pushSwapPsbt = async (
                 payload: txId,
             };
         } else {
-            const poolLockedResult = await PoolInfoModal.findOneAndUpdate(
-                { address: poolAddress, tokenType: "RUNE" },
+            const poolLockedResult = await RunePoolInfoModal.findOneAndUpdate(
+                { address: poolAddress },
                 { $set: { isLocked: false } }
             )
 
@@ -802,7 +953,7 @@ export const pushSwapPsbt = async (
     } else {
         return {
             success: false,
-            message: `This user keep signing over ${lockTime} sec`,
+            message: `This user keep signing over ${runeLockTime} sec`,
             payload: undefined,
         };
     }
@@ -819,8 +970,8 @@ export const getMempoolBtcPrice = async () => {
 }
 
 export const removeSwapTransaction = async (poolAddress: string, userAddress: string) => {
-    const isPoolAddressExisted = await PoolInfoModal.findOne({
-        address: poolAddress, tokenType: "RUNE"
+    const isPoolAddressExisted = await RunePoolInfoModal.findOne({
+        address: poolAddress
     })
 
     if (!isPoolAddressExisted) {
@@ -832,8 +983,8 @@ export const removeSwapTransaction = async (poolAddress: string, userAddress: st
     }
 
     if (isPoolAddressExisted.isLocked && isPoolAddressExisted.lockedByAddress == userAddress) {
-        await PoolInfoModal.findOneAndUpdate(
-            { address: poolAddress, tokenType: "RUNE" },
+        await RunePoolInfoModal.findOneAndUpdate(
+            { address: poolAddress },
             { $set: { isLocked: false } }
         )
     }

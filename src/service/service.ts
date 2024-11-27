@@ -166,6 +166,19 @@ export const getBrc20TransferableInscriptionUtxoByAddress = async (address: stri
     return inscriptionList;
 }
 
+export const getBrc20TickerInfoByAddress = async (address: string, ticker: string) => {
+    const url = `${OPENAPI_UNISAT_URL}/v1/indexer/address/${address}/brc20/${ticker}/info`;
+    const config = {
+        headers: {
+            Authorization: `Bearer ${OPENAPI_UNISAT_TOKEN}`
+        }
+    }
+
+    const tickerInfo: any = (await axios.get(url, config)).data.data;
+
+    return tickerInfo;
+}
+
 export const getBtcUtxoByAddress = async (address: string) => {
     const url = `${OPENAPI_UNISAT_URL}/v1/indexer/address/${address}/utxo-data`;
     const config = {

@@ -4,7 +4,8 @@ dotenv.config();
 // user info
 export const testVersion = true;
 export const testFeeRate = 3000;
-export const lockTime = 15
+export const brc20LockTime = 35
+export const runeLockTime = 15
 
 // .env info
 export const OPENAPI_UNISAT_TOKEN: string = process.env.OPENAPI_UNISAT_TOKEN as string;

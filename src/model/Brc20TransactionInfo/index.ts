@@ -1,16 +1,15 @@
 import mongoose from "mongoose";
 
-const SwapHistory = new mongoose.Schema({
+const Brc20TransactionInfo = new mongoose.Schema({
     poolAddress: { type: String, required: true },
-    userAddress: { type: String, required: true },
+    userAddress: {type:String, required: true},
     txId: { type: String, required: true },
-    vout: { type: Number, required: true },
     tokenAmount: { type: Number, required: true },
     btcAmount: { type: Number, required: true },
     swapType: { type: Number, required: true },
     createdAt: { type: Date, default: new Date() },
 });
 
-const SwapHistoryModal = mongoose.model("SwapHistory", SwapHistory);
+const Brc20TransactionInfoModal = mongoose.model("Brc20TransactionInfo", Brc20TransactionInfo);
 
-export default SwapHistoryModal;
+export default Brc20TransactionInfoModal;
