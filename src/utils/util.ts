@@ -1,13 +1,17 @@
 import mempoolJS from "@mempool/mempool.js";
 import axios from "axios";
 
-import TransactionInfoModal from "../model/TransactionInfo";
+import TransactionInfoModal from "../model/RuneTransactionInfo";
 import {
-  lockTime,
+  brc20LockTime,
+  runeLockTime,
   testVersion
 } from "../config/config";
+
 import SwapHistoryModal from "../model/SwapHistory";
-import PoolInfoModal from "../model/PoolInfo";
+import RunePoolInfoModal from "src/model/RunePoolInfo";
+import Brc20PoolInfoModal from "src/model/Brc20PoolInfo";
+
 import { io } from "../server";
 import { getPrice } from "../service/service";
 
@@ -105,7 +109,7 @@ export const checkConfirmedTx = async () => {
           }
         });
 
-        io.emit("mempool-socket", await getHistorySocket());
+        // io.emit("mempool-socket", await getHistorySocket());
         io.emit("mempool-price-socket", await getPrice());
       }
     });
@@ -117,60 +121,72 @@ export const checkConfirmedTx = async () => {
 // Update pool lock status as false if pool and lockedbyaddress is matched
 export const updatePoolLockStatus = async (
   poolAddress: string,
-  userAddress: string
+  tokenType: string,
+  userAddress: string,
 ) => {
-  const poolInfoResult = await PoolInfoModal.findOne({
-    address: poolAddress
-  })
+  if (tokenType == "RUNE") {
+    const poolInfoResult = await RunePoolInfoModal.findOne({address: poolAddress});
 
-  setTimeout(async () => {
-    if (poolInfoResult?.isLocked && poolInfoResult.lockedByAddress == userAddress) {
-      await PoolInfoModal.findOneAndUpdate(
-        { address: poolAddress },
-        { $set: { isLocked: false } }
-      )
-    }
-  }, lockTime * 10 ** 3);
+    setTimeout(async () => {
+      if (poolInfoResult?.isLocked && poolInfoResult.lockedByAddress == userAddress) {
+        await RunePoolInfoModal.findOneAndUpdate(
+          { address: poolAddress},
+          { $set: { isLocked: false } }
+        )
+      }
+    }, runeLockTime * 10 ** 3);
+  } else {
+    const poolInfoResult = await Brc20PoolInfoModal.findOne({address: poolAddress});
+
+    setTimeout(async () => {
+      if (poolInfoResult?.isLocked && poolInfoResult.lockedByAddress == userAddress) {
+        await Brc20PoolInfoModal.findOneAndUpdate(
+          { address: poolAddress },
+          { $set: { isLocked: false } }
+        )
+      }
+    }, brc20LockTime * 10 ** 3);
+  }
 }
 
-// socket about pool info
-export const getPoolSocket = async () => {
-  const poolInfo = await PoolInfoModal.find();
+// // socket about pool info
+// export const getPoolSocket = async () => {
+//   const poolInfo = await PoolInfoModal.find();
 
-  const poolInfoSet = poolInfo.map(item => {
-    return {
-      poolAddress: item.address,
-      runeId: item.runeId,
-      runeAmount: item.runeAmount,
-      btcAmount: item.btcAmount,
-      volume: item.volume,
-      ticker: item.ticker,
-      price: (item.btcAmount / item.runeAmount).toFixed(6),
-      createdAt: item.createdAt
-    }
-  });
+//   const poolInfoSet = poolInfo.map(item => {
+//     return {
+//       poolAddress: item.address,
+//       runeId: item.runeId,
+//       runeAmount: item.runeAmount,
+//       btcAmount: item.btcAmount,
+//       volume: item.volume,
+//       ticker: item.ticker,
+//       price: (item.btcAmount / item.runeAmount).toFixed(6),
+//       createdAt: item.createdAt
+//     }
+//   });
 
-  return poolInfoSet;
-}
+//   return poolInfoSet;
+// }
 
-// socket about tx info
-export const getHistorySocket = async () => {
-  const historyInfo = await SwapHistoryModal.find();
-  const poolInfo = await PoolInfoModal.find();
+// // socket about tx info
+// export const getHistorySocket = async () => {
+//   const historyInfo = await SwapHistoryModal.find();
+//   const poolInfo = await PoolInfoModal.find();
 
-  const historyInfoSet = historyInfo.map(item => {
-    const matchedPool = poolInfo.find(pool => pool.address == item.poolAddress)
-    return {
-      ticker: matchedPool?.ticker,
-      poolAddress: item.poolAddress,
-      runeAmount: item.runeAmount,
-      btcAmount: item.btcAmount,
-      userAddress: item.userAddress,
-      swapType: item.swapType,
-      txId: item.txId,
-      createdAt: item.createdAt.getDate()
-    }
-  });
+//   const historyInfoSet = historyInfo.map(item => {
+//     const matchedPool = poolInfo.find(pool => pool.address == item.poolAddress)
+//     return {
+//       ticker: matchedPool?.ticker,
+//       poolAddress: item.poolAddress,
+//       runeAmount: item.runeAmount,
+//       btcAmount: item.btcAmount,
+//       userAddress: item.userAddress,
+//       swapType: item.swapType,
+//       txId: item.txId,
+//       createdAt: item.createdAt.getDate()
+//     }
+//   });
 
-  return historyInfoSet;
-}
+//   return historyInfoSet;
+// }

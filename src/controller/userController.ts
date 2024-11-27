@@ -5,7 +5,7 @@ const ecc = require("@bitcoinerlab/secp256k1");
 bitcoin.initEccLib(ecc);
 
 import { getBtcUtxoByAddress, getRuneBalanceListByAddress, getRuneUtxoByAddress, getBtcBalanceByAddress } from "../service/service";
-import PoolInfoModal from "../model/PoolInfo";
+import PoolInfoModal from "../model/RunePoolInfo";
 import { IRuneUtxo } from "../utils/type";
 import { OPENAPI_UNISAT_TOKEN } from "../config/config";
 
