@@ -11,7 +11,7 @@ const Brc20PoolInfo = new mongoose.Schema({
     volume: { type: Number, default: 0 },
     isLocked: { type: Boolean, default: false, required: true },
     lockedByAddress: { type: String },
-    createdAt: { type: Date, default: new Date() },
+    createdAt: { type: Date, default: new Date(new Date().toUTCString()) },
 });
 
 const Brc20PoolInfoModal = mongoose.model("Brc20PoolInfo", Brc20PoolInfo);

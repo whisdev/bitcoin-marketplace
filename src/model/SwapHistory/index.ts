@@ -9,7 +9,7 @@ const SwapHistory = new mongoose.Schema({
     btcAmount: { type: Number, required: true },
     swapType: { type: Number, required: true },
     // vout: { type: Number, required: true },
-    createdAt: { type: Date, default: new Date() },
+    createdAt: { type: Date, default: new Date(new Date().toUTCString()) },
 });
 
 const SwapHistoryModal = mongoose.model("SwapHistory", SwapHistory);

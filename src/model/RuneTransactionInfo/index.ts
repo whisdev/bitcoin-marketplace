@@ -10,7 +10,7 @@ const RuneTransactionInfo = new mongoose.Schema({
     btcAmount: { type: Number, required: true },
     swapType: { type: Number, required: true },
     isUsed: { type: Boolean, default: false },
-    createdAt: { type: Date, default: new Date() },
+    createdAt: { type: Date, default: new Date(new Date().toUTCString()) },
 });
 
 const RuneTransactionInfoModal = mongoose.model("RuneTransactionInfo", RuneTransactionInfo);
