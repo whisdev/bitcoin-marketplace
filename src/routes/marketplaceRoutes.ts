@@ -6,11 +6,12 @@ import {
     generateUserBuyRuneSellBtcPsbt,
     generateUserBuyBtcSellRunePsbt,
     generateUserBuyBrc20SellBtcPsbt,
-    generateuserBuyBtcSellBrc20Psbt,
+    generateUserBuyBtcSellBrc20Psbt,
     pushRuneSwapPsbt,
     removeSwapTransaction,
     poolTransferBrc20,
-    poolReceiveBrc20,
+    pushBrc20SwapPsbt,
+    // generateUserInscribeBrc20Psbt,
 } from '../controller/marketplaceController';
 
 import { getBrc20TransferableInscriptionUtxoByAddress } from '../service/service';
@@ -58,7 +59,7 @@ marketplaceRouter.post('/poolTransferBrc20', async (req, res, next) => {
     try {
         const { userPubkey, userAddress, userReceiveBrc20Amount, userSendBtcAmount, poolAddress } = req.body;
 
-        const payload = await poolTransferBrc20(userPubkey, userAddress, userReceiveBrc20Amount, userSendBtcAmount,  poolAddress);
+        const payload = await poolTransferBrc20(userPubkey, userAddress, userReceiveBrc20Amount, userSendBtcAmount, poolAddress);
 
         return res.status(200).send(payload)
     } catch (error) {
@@ -66,20 +67,6 @@ marketplaceRouter.post('/poolTransferBrc20', async (req, res, next) => {
         return res.status(404).send(error);
     }
 });
-
-// Pool sign psbt user buy rune and sell btc and update pool database
-marketplaceRouter.post('/poolReceiveBrc20', async ( req, res, next) => {
-    try {
-        const { userPubkey, userAddress, userSendBrc20Amount, userBuyBtcAmount, poolAddress } = req.body;
-
-        const payload = await poolReceiveBrc20(userPubkey, userAddress, userSendBrc20Amount, userBuyBtcAmount, poolAddress)
-
-        return res.status(200).send(payload);
-    } catch (error) {
-        console.log(error);
-        return res.status(404).send(error);
-    }
-})
 
 // generate psbt taht User buy Brc20 && send BTC
 marketplaceRouter.post('/generateUserBuyBrc20SellBtcPsbt', async (req, res, next) => {
@@ -96,12 +83,26 @@ marketplaceRouter.post('/generateUserBuyBrc20SellBtcPsbt', async (req, res, next
     }
 })
 
+// Pool sign psbt user buy rune and sell btc and update pool database
+marketplaceRouter.post('/pushBrc20SwapPsbt', async (req, res, next) => {
+    try {
+        const { psbt, userSignedHexedPsbt, userAddress, poolAddress, brc20Amount, btcAmount, poolInputArray, userInputArray, swapType } = req.body;
+
+        const payload = await pushBrc20SwapPsbt(psbt, userSignedHexedPsbt, userAddress, poolAddress, brc20Amount, btcAmount, poolInputArray, userInputArray, swapType)
+
+        return res.status(200).send(payload);
+    } catch (error) {
+        console.log(error);
+        return res.status(404).send(error);
+    }
+})
+
 // generate psbt taht User buy Brc20 && send BTC
 marketplaceRouter.post('/generateUserBuyBtcSellBrc20Psbt', async (req, res, next) => {
     try {
         const { userPubkey, userAddress, userSendBrc20Amount, userBuyBtcAmount, poolAddress } = req.body;
 
-        const payload = await generateuserBuyBtcSellBrc20Psbt(userPubkey, userAddress, userSendBrc20Amount, userBuyBtcAmount, poolAddress);
+        const payload = await generateUserBuyBtcSellBrc20Psbt(userPubkey, userAddress, userSendBrc20Amount, userBuyBtcAmount, poolAddress);
 
         console.log('payload :>> ', payload);
         return res.status(200).send(payload)
@@ -112,7 +113,7 @@ marketplaceRouter.post('/generateUserBuyBtcSellBrc20Psbt', async (req, res, next
 })
 
 // sign and broadcast tx on Server side
-marketplaceRouter.post('/pushPsbt', async (req, res, next) => {
+marketplaceRouter.post('/pushRuneSwapPsbt', async (req, res, next) => {
     try {
         const { psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, btcAmount, userInputArray, poolInputArray, userAddress, poolAddress, usedTransactionList, swapType } = req.body;
 
