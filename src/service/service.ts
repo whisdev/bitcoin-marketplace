@@ -220,7 +220,6 @@ export const getFeeRate = async () => {
 
 export const getPrice = async () => {
     try {
-        // const url = `https://mempool.space/${testVersion ? "testnet/" : ""
         const url = `https://mempool.space/api/v1/prices`;
 
         const res = await axios.get(url);
@@ -232,23 +231,21 @@ export const getPrice = async () => {
     }
 };
 
-
 export const getBtcBalanceByAddress = async (address: string) => {
     try {
         const response = await fetch(`${OPENAPI_UNISAT_URL}/v1/indexer/address/${address}/balance`, {
             method: 'GET',
-            headers: {Authorization: `Bearer ${OPENAPI_UNISAT_TOKEN}`},
+            headers: { Authorization: `Bearer ${OPENAPI_UNISAT_TOKEN}` },
         });
 
-        const data:any = await response.json();
+        const data: any = await response.json();
         return data.data.satoshi;
-      
+
     } catch (error) {
         console.log("Mempool api is not working now. Try again later");
         return 90000;
     }
 };
-
 
 export const pushRawTx = async (rawTx: string) => {
     const txid = await postData(
@@ -360,18 +357,20 @@ export const getRuneBalanceListByAddress = async (address: string) => {
 
         if (res.data.code === -1) throw "Invalid Address";
 
-        utxos.push(
-            ...(res.data.data.detail as any[]).map((utxo) => {
-                return {
-                    rune: utxo.rune,
-                    runeid: utxo.runeid,
-                    spacedRune: utxo.spacedRune,
-                    amount: utxo.amount,
-                    symbol: utxo.symbol,
-                    divisibility: utxo.divisibility,
-                };
-            })
-        );
+        if (res.data.data) {
+            utxos.push(
+                ...(res.data.data.detail as any[]).map((utxo) => {
+                    return {
+                        rune: utxo.rune,
+                        runeid: utxo.runeid,
+                        spacedRune: utxo.spacedRune,
+                        amount: utxo.amount,
+                        symbol: utxo.symbol,
+                        divisibility: utxo.divisibility,
+                    };
+                })
+            );
+        }
         return utxos
     }
     catch (err) {
@@ -417,3 +416,61 @@ export const pushBTCpmt = async (rawtx: any) => {
 
     return txid;
 };
+
+export const generateUserInscribeBrc20Psbt = async (
+    address: string,
+    publickey: string,
+    inscribeAmount: number,
+    ticker: string,
+    utxos: IUtxo[]
+) => {
+    const psbt = new bitcoin.Psbt({ network });
+    const feeRate = testVersion ? testFeeRate : await getFeeRate();
+
+    const brc20TickerInfo = await getBrc20TickerInfoByAddress(address, ticker);
+
+    if (brc20TickerInfo.availableBalance < inscribeAmount)
+        throw `No sufficient available BRC20 amount`
+
+    const orderInscriptionInfo = await createOrderBrc20Transfer(address, feeRate, ticker, inscribeAmount);
+
+    const payAddress = orderInscriptionInfo.payAddress;
+    const inscriptionPayAmount = orderInscriptionInfo.amount;
+
+    psbt.addOutput({
+        address: payAddress,
+        value: inscriptionPayAmount
+    })
+
+    // add btc utxo input
+    let totalBtcAmount = 0;
+
+    for (const btcutxo of utxos) {
+        const fee = calculateTxFee(psbt, feeRate) + inscriptionPayAmount;
+        if (totalBtcAmount < fee && btcutxo.value > 10000) {
+            totalBtcAmount += btcutxo.value;
+
+            psbt.addInput({
+                hash: btcutxo.txid,
+                index: btcutxo.vout,
+                witnessUtxo: {
+                    value: btcutxo.value,
+                    script: Buffer.from(btcutxo.scriptpubkey as string, "hex"),
+                },
+                tapInternalKey: Buffer.from(publickey, "hex").slice(1, 33)
+            })
+        }
+    }
+
+    const fee = calculateTxFee(psbt, feeRate) + inscriptionPayAmount;
+
+    if (totalBtcAmount < fee)
+        throw `BTC balance in User of ${address} is not enough`
+
+    psbt.addOutput({
+        address: address,
+        value: totalBtcAmount - fee,
+    });
+
+    return psbt.toHex();
+}

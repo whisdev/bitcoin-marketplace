@@ -21,7 +21,7 @@ export const getPullInfo = async () => {
       return {
         poolAddress: item.address,
         runeId: item.runeId,
-        runeAmount: item.tokenAmount,
+        runeAmount: item.tokenAmount / (10 ** item.divisibility),
         btcAmount: item.btcAmount,
         ticker: item.ticker,
         price: (item.btcAmount / item.tokenAmount).toFixed(6),
