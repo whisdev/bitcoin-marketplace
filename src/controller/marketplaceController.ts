@@ -1121,7 +1121,6 @@ export const pushRuneSwapPsbt = async (
 
         // db features
         if (txId) {
-
             let updatedPoolInfo: any;
             let newTxInfo: any;
 
@@ -1143,7 +1142,7 @@ export const pushRuneSwapPsbt = async (
                     )
 
                     if (!updatedPoolInfo) {
-                        const poolLockedResult = await RunePoolInfoModal.findOneAndUpdate(
+                        await RunePoolInfoModal.findOneAndUpdate(
                             { address: poolAddress },
                             { $set: { isLocked: false } }
                         )
@@ -1184,7 +1183,7 @@ export const pushRuneSwapPsbt = async (
                     )
 
                     if (!updatedPoolInfo) {
-                        const poolLockedResult = await RunePoolInfoModal.findOneAndUpdate(
+                        await RunePoolInfoModal.findOneAndUpdate(
                             { address: poolAddress },
                             { $set: { isLocked: false } }
                         )
@@ -1264,10 +1263,17 @@ export const getMempoolBtcPrice = async () => {
     }
 }
 
-export const removeSwapTransaction = async (poolAddress: string, userAddress: string) => {
-    const isPoolAddressExisted = await RunePoolInfoModal.findOne({
-        address: poolAddress
-    })
+export const removeSwapTransaction = async (poolAddress: string, userAddress: string, tokenType: string) => {
+    let isPoolAddressExisted;
+    if (tokenType == "BRC20") {
+        isPoolAddressExisted = await Brc20PoolInfoModal.findOne({
+            address: poolAddress
+        })
+    } else {
+        isPoolAddressExisted = await RunePoolInfoModal.findOne({
+            address: poolAddress
+        })
+    }
 
     if (!isPoolAddressExisted) {
         return {
@@ -1286,7 +1292,7 @@ export const removeSwapTransaction = async (poolAddress: string, userAddress: st
 
     return {
         success: true,
-        message: `Remove swap transaction successfully`,
+        message: `Unlock ${tokenType} pool - ${poolAddress} successfully`,
         payload: undefined,
     };
 }

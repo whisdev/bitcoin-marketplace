@@ -128,9 +128,9 @@ marketplaceRouter.post('/pushPsbt', async (req, res, next) => {
 // remove swap transaction
 marketplaceRouter.post('/removeSwapTx', async (req, res, next) => {
     try {
-        const { poolAddress, userAddress } = req.body;
+        const { poolAddress, userAddress, tokenType } = req.body;
 
-        const payload = await removeSwapTransaction(poolAddress, userAddress);
+        const payload = await removeSwapTransaction(poolAddress, userAddress, tokenType);
 
         return res.status(200).send(payload);
     } catch (error) {

@@ -6,7 +6,7 @@ export const testVersion = true;
 export const testFeeRate = 3000;
 export const brc20LockTime = 30;
 export const runeLockTime = 15;
-export const userSendBrc20Fee = 30000; // fee when user inscribe and send brc20 token to pool
+export const userSendBrc20Fee = testVersion ? 400000 : 30000; // fee when user inscribe and send brc20 token to pool
 
 // .env info
 export const OPENAPI_UNISAT_TOKEN: string = process.env.OPENAPI_UNISAT_TOKEN as string;
