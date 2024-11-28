@@ -97,7 +97,7 @@ export const checkConfirmedTx = async () => {
               poolAddress: unconfirmedTx.poolAddress,
               txId: unconfirmedTx.txId,
               // vout: unconfirmedTx.vout,
-              tokenAmount: unconfirmedTx.poolRuneAmount,
+              tokenAmount: unconfirmedTx.userRuneAmount,
               btcAmount: unconfirmedTx.btcAmount,
               tokenType: "RUNE",
               swapType: unconfirmedTx.swapType,
