@@ -58,11 +58,7 @@
 		"@types/node": "^20.11.5",
 		"@types/node-cron": "^3.0.11",
 		"@types/ws": "^8.5.13",
-<<<<<<< HEAD
-		"husky": "^9.0.11",
-=======
 		"husky": "9.0.11",
->>>>>>> 195a6b62bdc3b87c62cd9d71d866032871e2a09d
 		"ts-node": "^10.9.2",
 		"typescript": "^5.3.3"
 	},

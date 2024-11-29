@@ -9,10 +9,7 @@ import {
 	getRuneBalanceListByAddress,
 	getRuneUtxoByAddress,
 	getBtcBalanceByAddress,
-<<<<<<< HEAD
     getBrc20SummaryByAddress,
-=======
->>>>>>> 195a6b62bdc3b87c62cd9d71d866032871e2a09d
 } from "../service/service";
 import PoolInfoModal from "../model/RunePoolInfo";
 import { IRuneUtxo } from "../utils/type";
