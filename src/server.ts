@@ -8,15 +8,6 @@ import { Server } from "socket.io";
 import { connectMongoDB } from "./utils/db";
 import { MongoDBUrl } from "./config/config";
 import { checkConfirmedTx } from "./utils/util";
-<<<<<<< HEAD
-
-import marketplaceRouter from "./routes/marketplaceRoutes";
-import poolRouter from "./routes/poolRoutes";
-import userRouter from "./routes/userRoutes";
-import testRouter from "./routes/testRoutes";
-
-const PORT = process.env.PORT || 9030;
-=======
 
 import marketplaceRouter from "./routes/marketplaceRoutes";
 import poolRouter from "./routes/poolRoutes";
@@ -24,7 +15,6 @@ import userRouter from "./routes/userRoutes";
 import testRouter from "./routes/testRoutes";
 
 const PORT = process.env.PORT || 5000;
->>>>>>> 195a6b62bdc3b87c62cd9d71d866032871e2a09d
 
 // Connect to the MongoDB database
 connectMongoDB(MongoDBUrl as string);

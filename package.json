@@ -4,7 +4,7 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"dev": "ts-node-dev src/server.ts  -H 135.181.242.18",
+		"dev": "ts-node-dev src/server.ts -H 135.181.242.18",
 		"build": "tsc",
 		"prepare": "husky install",
 		"check-types": "tsc --pretty --noEmit",
