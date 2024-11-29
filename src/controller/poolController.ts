@@ -20,6 +20,7 @@ export const getPullInfo = async () => {
 		runePoolInfoSet = runePoolInfo.map((item) => {
 			return {
 				poolAddress: item.address,
+				tokenType: "RUNE",
 				runeId: item.runeId,
 				runeAmount: item.tokenAmount / 10 ** item.divisibility,
 				btcAmount: item.btcAmount,
@@ -35,6 +36,7 @@ export const getPullInfo = async () => {
 			return {
 				poolAddress: item.address,
 				ticker: item.ticker,
+				tokenType: "BRC20",
 				safeTokenAmount: item.safeTokenAmount,
 				unsafeTokenAmount: item.unsafeTokenAmount,
 				btcAmount: item.btcAmount,
@@ -65,6 +67,7 @@ export const getRunePullInfo = async () => {
 				poolAddress: item.address,
 				runeId: item.runeId,
 				runeAmount: item.tokenAmount,
+				tokenType: "RUNE",
 				btcAmount: item.btcAmount,
 				ticker: item.ticker,
 				price: (item.btcAmount / item.tokenAmount).toFixed(6),
@@ -92,6 +95,7 @@ export const getBrc20PullInfo = async () => {
 				ticker: item.ticker,
 				safeTokenAmount: item.safeTokenAmount,
 				unsafeTokenAmount: item.unsafeTokenAmount,
+				tokenType: "BRC20",
 				btcAmount: item.btcAmount,
 				price: (item.btcAmount / (item.safeTokenAmount + item.unsafeTokenAmount)).toFixed(6),
 				createdAt: item.createdAt,

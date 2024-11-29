@@ -9,7 +9,7 @@ import {
 	getRuneBalanceListByAddress,
 	getRuneUtxoByAddress,
 	getBtcBalanceByAddress,
-    getBrc20SummaryByAddress,
+	getBrc20SummaryByAddress,
 } from "../service/service";
 import PoolInfoModal from "../model/RunePoolInfo";
 import { IRuneUtxo } from "../utils/type";
@@ -21,7 +21,6 @@ export const getUserRuneInfo = async (userAddress: string) => {
 	const response = await getRuneBalanceListByAddress(userAddress);
 
 	const userRuneInfo = response;
-	console.log("userRuneInfo :>> ", userRuneInfo);
 
 	return {
 		success: true,
@@ -31,24 +30,30 @@ export const getUserRuneInfo = async (userAddress: string) => {
 };
 
 export const getUserBrc20Info = async (userAddress: string) => {
+	const response = await getBrc20SummaryByAddress(userAddress);
 
-    const response = await getBrc20SummaryByAddress(userAddress);
-   
-    const userBrc20Info = response;
-    console.log('userRuneInfo :>> ', userBrc20Info);
+	const userBrc20Info = response;
 
-    return {
-        success: true,
-        message: "get user rune info successfully",
-        payload: userBrc20Info,
-    };
-}
+	return {
+		success: true,
+		message: "get user rune info successfully",
+		payload: userBrc20Info,
+	};
+};
 
 export const getWalletBalance = async (userAddress: string) => {
-	const response = await getBtcBalanceByAddress(userAddress);
+	// const response = await getBtcBalanceByAddress(userAddress);
+	const utxos = await getBtcUtxoByAddress(userAddress);
 
-	const balance = response;
-	console.log("userWalletBalanceInfo :>> ", balance);
+	let balance = 0;
+	for (const utxo of utxos) {
+		if (utxo.value > 1000) {
+			balance += utxo.value as number;
+		}
+	}
+
+	// const balance = response;
+
 	return {
 		success: true,
 		message: "get user rune info successfully",

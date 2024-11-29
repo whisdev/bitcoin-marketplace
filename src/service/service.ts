@@ -133,9 +133,8 @@ export const createOrderBrc20Transfer = async (
 			feeRate,
 			outputValue: 546,
 			devAddress: address,
-			devFee: 0,
 			brc20Ticker: ticker,
-			brc20Amount: amount,
+			brc20Amount: amount.toString(),
 		},
 		{
 			headers: {
@@ -144,7 +143,7 @@ export const createOrderBrc20Transfer = async (
 		}
 	);
 
-	return res.data;
+	return res.data.data;
 };
 
 export const getBrc20TransferableInscriptionUtxoByAddress = async (

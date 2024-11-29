@@ -4,7 +4,7 @@ import * as bitcoin from "bitcoinjs-lib";
 import { pushRawTx } from "../service/service";
 import { testVersion, privateKey } from "../config/config";
 import { LocalWallet } from "../service/localWallet";
-import { generateUserBuyRunePsbt, pushSwapPsbt } from "../controller/testController";
+import { generateUserBuyBrc20SellBtcPsbt, generateUserBuyRunePsbt, poolTransferBrc20, pushSwapPsbt } from "../controller/testController";
 
 export const adminWallet = new LocalWallet(privateKey as string, testVersion ? 1 : 0);
 
@@ -21,6 +21,50 @@ testRouter.get("/test", async (req, res, next) => {
 		res.status(200).send("test successfully");
 	} catch (error) {
 		res.status(404).send(error);
+	}
+});
+
+// Pool sign psbt user buy btc and sell rune and update pool database
+testRouter.post("/poolTransferBrc20", async (req, res, next) => {
+	try {
+		const { userSignedPsbt, userPubkey, userAddress, userBuyBrc20Amount, userSendBtcAmount, poolAddress } =
+			req.body;
+
+		const payload = await poolTransferBrc20(
+			userSignedPsbt,
+			userPubkey,
+			userAddress,
+			userBuyBrc20Amount,
+			userSendBtcAmount,
+			poolAddress
+		);
+
+		return res.status(200).send(payload);
+	} catch (error) {
+		console.log(error);
+		return res.status(404).send(error);
+	}
+});
+
+// generate psbt taht User buy Brc20 && send BTC
+testRouter.post("/generateUserBuyBrc20SellBtcPsbt", async (req, res, next) => {
+	try {
+		const { userPubkey, userAddress, userBuyBrc20Amount, userSendBtcAmount, poolAddress } =
+			req.body;
+
+		const payload = await generateUserBuyBrc20SellBtcPsbt(
+			userPubkey,
+			userAddress,
+			userBuyBrc20Amount,
+			userSendBtcAmount,
+			poolAddress
+		);
+
+		console.log("payload :>> ", payload);
+		return res.status(200).send(payload);
+	} catch (error) {
+		console.log(error);
+		return res.status(404).send(error);
 	}
 });
 

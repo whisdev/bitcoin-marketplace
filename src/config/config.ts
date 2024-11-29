@@ -3,7 +3,7 @@ dotenv.config();
 
 // user info
 export const testVersion = true;
-export const testFeeRate = 3000;
+export const testFeeRate = 4000;
 // export const brc20LockTime = 30;
 // export const runeLockTime = 15;
 export const lockTime = 15;

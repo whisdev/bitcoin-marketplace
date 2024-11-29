@@ -35,10 +35,10 @@ import RuneTransactionInfoModal from "../model/RuneTransactionInfo";
 
 import { io } from "../server";
 import { LocalWallet } from "../service/localWallet";
-import { buffer } from "stream/consumers";
 import RunePoolInfoModal from "../model/RunePoolInfo";
 import Brc20PoolInfoModal from "../model/Brc20PoolInfo";
 import Brc20TransactionInfoModal from "../model/Brc20TransactionInfo";
+import UsedTxInfoModal from "../model/UsedTxInfo";
 
 const ecc = require("@bitcoinerlab/secp256k1");
 const ECPair = ECPairFactory(ecc);
@@ -88,7 +88,12 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 
 	// Fetch UTXOs
 	const userBtcUtxos = await getBtcUtxoByAddress(userAddress);
-	const poolRuneUtxos = await getRuneUtxoByAddress(poolAddress, runeId as string);
+	const poolRuneUtxoInfo = await getRuneUtxoByAddress(poolAddress, runeId as string);
+	const usedTxInfo = await UsedTxInfoModal.find();
+	const usingTxInfo: string[] = [];
+	const poolRuneUtxos = poolRuneUtxoInfo.runeUtxos.filter(
+		(item) => !usedTxInfo?.find((i) => i.txid === item.txid)
+	);
 
 	// Prepare PSBT and initialize values
 	const psbt = new bitcoin.Psbt({ network });
@@ -103,7 +108,7 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 	const runeIdx = Number((runeId as string).split(":")[1]);
 
 	// Add pool rune UTXO inputs to PSBT
-	for (const runeutxo of poolRuneUtxos.runeUtxos) {
+	for (const runeutxo of poolRuneUtxos) {
 		if (tokenSum >= requiredAmount) break;
 
 		psbt.addInput({
@@ -116,6 +121,7 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 			tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
 		});
 
+		usingTxInfo.push(runeutxo.txid);
 		poolInputArray.push(cnt++);
 		tokenSum += runeutxo.amount;
 		txList.push(runeutxo.txid);
@@ -141,6 +147,7 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 		usedTxList.push(runeutxo.txId);
 	}
 
+	console.log("tokenSum < requiredAmount :>> ", tokenSum, requiredAmount);
 	// Check if enough rune is gathered
 	if (tokenSum < requiredAmount) {
 		const poolLockedResult = await RunePoolInfoModal.findOneAndUpdate(
@@ -168,6 +175,8 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 		amount: tokenSum - requiredAmount,
 		output: 2,
 	});
+
+	console.log("psbt :>> ", psbt);
 
 	// Add Rune outputs to PSBT
 	const mintstone = new Runestone(edicts, none(), none(), none());
@@ -248,6 +257,7 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 			usedTxList,
 			userRuneAmount: requiredAmount,
 			poolRuneAmount: tokenSum - requiredAmount,
+			usingTxInfo,
 		},
 	};
 };
@@ -477,6 +487,7 @@ export const generateUserBuyBtcSellRunePsbt = async (
 			usedTxList,
 			poolRuneAmount: requiredAmount,
 			userRuneAmount: requiredAmount,
+			usingTxInfo : []
 		},
 	};
 };
@@ -493,6 +504,7 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
 	const psbt = new bitcoin.Psbt({ network });
 	const feeRate = testVersion ? testFeeRate : await getFeeRate();
 	const userBtcUtxos = await getBtcUtxoByAddress(userAddress);
+	const requiredAmount = Math.floor(userSendBtcAmount * 10 ** 8);
 
 	const poolInfoResult = await Brc20PoolInfoModal.findOne({
 		address: poolAddress,
@@ -546,6 +558,14 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
 		if (brc20TickerInfo.availableBalance < userBuyBrc20Amount)
 			throw `No sufficient available BRC20 amount`;
 
+		console.log(
+			"poolAddress, feeRate, ticker, userBuyBrc20Amount :>> ",
+			poolAddress,
+			feeRate,
+			ticker,
+			userBuyBrc20Amount
+		);
+
 		const orderInscriptionInfo = await createOrderBrc20Transfer(
 			poolAddress,
 			feeRate,
@@ -553,9 +573,12 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
 			userBuyBrc20Amount
 		);
 
+		console.log("orderInscriptionInfo :>> ", orderInscriptionInfo);
+
 		const payAddress = orderInscriptionInfo.payAddress;
 		const inscriptionPayAmount = orderInscriptionInfo.amount;
 
+		console.log("inscriptionPayAmount :>> ", inscriptionPayAmount);
 		psbt.addOutput({
 			address: payAddress,
 			value: inscriptionPayAmount,
@@ -563,7 +586,7 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
 
 		psbt.addOutput({
 			address: poolAddress,
-			value: userSendBtcAmount,
+			value: requiredAmount,
 		});
 
 		psbt.addOutput({
@@ -576,7 +599,7 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
 
 		for (const btcutxo of userBtcUtxos) {
 			const fee =
-				calculateTxFee(psbt, feeRate) + inscriptionPayAmount + userSendBtcAmount + userSendBrc20Fee;
+				calculateTxFee(psbt, feeRate) + inscriptionPayAmount + requiredAmount + userSendBrc20Fee;
 			if (totalBtcAmount < fee && btcutxo.value > 10000) {
 				totalBtcAmount += btcutxo.value;
 
@@ -593,7 +616,7 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
 		}
 
 		const fee =
-			calculateTxFee(psbt, feeRate) + inscriptionPayAmount + userSendBtcAmount + userSendBrc20Fee;
+			calculateTxFee(psbt, feeRate) + inscriptionPayAmount + requiredAmount + userSendBrc20Fee;
 
 		if (totalBtcAmount < fee) throw `BTC balance in User of ${userAddress} is not enough`;
 
@@ -619,7 +642,7 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
 
 	psbt.addOutput({
 		address: poolAddress,
-		value: Math.floor(userSendBtcAmount * 10 ** 8),
+		value: requiredAmount,
 	});
 
 	const poolInputArray: number[] = [];
@@ -696,6 +719,7 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
 };
 
 export const poolTransferBrc20 = async (
+	userSignedHexedPsbt: string,
 	userPubkey: string,
 	userAddress: string,
 	poolSendBrc20Amount: number,
@@ -715,126 +739,164 @@ export const poolTransferBrc20 = async (
 	}
 
 	if (isPoolAddressExisted.isLocked && isPoolAddressExisted.lockedByAddress == userAddress) {
-		delay(15000);
+		const userSignedPsbt = bitcoin.Psbt.fromHex(userSignedHexedPsbt);
 
-		const feeRate = testVersion ? testFeeRate : await getFeeRate();
-		const poolInfoResult = await Brc20PoolInfoModal.findOne({
-			address: poolAddress,
-		});
+		userSignedPsbt.finalizeAllInputs();
 
-		if (!poolInfoResult) {
-			return {
-				success: false,
-				message: `No pool found at address ${poolAddress}`,
-				payload: undefined,
-			};
-		}
+		const userTx = userSignedPsbt.extractTransaction();
+		const userTxHex = userTx.toHex();
+		const userTxId = await pushRawTx(userTxHex);
 
-		const ticker = poolInfoResult.ticker;
-		const poolPubkey = poolInfoResult.publickey;
-		const poolPrivkey = poolInfoResult.privatekey;
-		const poolWallet = new LocalWallet(poolPrivkey, testVersion ? 1 : 0);
+		if (userTxId) {
+			console.log("userTxId :>> ", userTxId);
+			await delay(10000);
 
-		const psbt = new bitcoin.Psbt({ network });
-
-		const inscriptionList = await getBrc20TransferableInscriptionUtxoByAddress(poolAddress, ticker);
-		const btcUtxos = await getBtcUtxoByAddress(poolAddress);
-
-		const existedInscription = inscriptionList.find(
-			(inscription) =>
-				inscription.data.tick.toUpperCase() == ticker.toUpperCase() &&
-				inscription.data.amt == poolSendBrc20Amount
-		);
-
-		if (!existedInscription) {
-			return {
-				success: false,
-				message: `No inscription of ${ticker} - ${poolSendBrc20Amount} at address ${userAddress}`,
-				payload: undefined,
-			};
-		}
-
-		const inscriptionData = await getInscriptionData(poolAddress, existedInscription.inscriptionId);
-
-		psbt.addInput({
-			hash: inscriptionData.txid,
-			index: inscriptionData.vout,
-			witnessUtxo: {
-				value: inscriptionData.satoshi,
-				script: Buffer.from(poolPubkey, "hex"),
-			},
-			tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
-		});
-
-		psbt.addOutput({
-			address: userAddress,
-			value: inscriptionData.satoshi,
-		});
-
-		// add btc utxo input
-		let totalBtcAmount = 0;
-
-		for (const btcutxo of btcUtxos) {
-			const fee = calculateTxFee(psbt, feeRate);
-			if (totalBtcAmount < fee && btcutxo.value > 10000) {
-				totalBtcAmount += btcutxo.value;
-
-				psbt.addInput({
-					hash: btcutxo.txid,
-					index: btcutxo.vout,
-					witnessUtxo: {
-						value: btcutxo.value,
-						script: Buffer.from(btcutxo.scriptpubkey as string, "hex"),
-					},
-					tapInternalKey: Buffer.from(userPubkey, "hex").slice(1, 33),
-				});
-			}
-		}
-
-		const fee = calculateTxFee(psbt, feeRate);
-
-		if (totalBtcAmount < fee) throw "BTC balance is not enough";
-
-		psbt.addOutput({
-			address: poolAddress,
-			value: totalBtcAmount - fee,
-		});
-
-		const poolSignedPsbt = await poolWallet.signPsbt(psbt);
-		const tx = poolSignedPsbt.extractTransaction();
-		const txHex = tx.toHex();
-
-		const txId = await pushRawTx(txHex);
-
-		// db features
-		if (txId) {
-			let updatedPoolInfo: any;
-			let newTxInfo: any;
-
-			updatedPoolInfo = await Brc20PoolInfoModal.findOneAndUpdate(
-				{ address: poolAddress },
-				{
-					$set: {
-						safeTokenAmount: isPoolAddressExisted.safeTokenAmount - poolSendBrc20Amount,
-						btcAmount: isPoolAddressExisted.btcAmount + poolReceiveBtcAmount,
-						volume: isPoolAddressExisted.volume + poolReceiveBtcAmount,
-						isLocked: false,
-					},
-				}
-			);
-
-			const newBrc20Transaction = new Brc20TransactionInfoModal({
-				poolAddress: poolAddress,
-				userAddress: userAddress,
-				txId: txId,
-				tokenAmount: poolSendBrc20Amount,
-				btcAmount: poolReceiveBtcAmount,
-				swapType: 1,
+			const feeRate = testVersion ? testFeeRate : await getFeeRate();
+			const poolInfoResult = await Brc20PoolInfoModal.findOne({
+				address: poolAddress,
 			});
 
-			await newBrc20Transaction.save();
+			if (!poolInfoResult) {
+				return {
+					success: false,
+					message: `No pool found at address ${poolAddress}`,
+					payload: undefined,
+				};
+			}
 
-			if (!updatedPoolInfo) {
+			const ticker = poolInfoResult.ticker;
+			const poolPubkey = poolInfoResult.publickey;
+			const poolPrivkey = poolInfoResult.privatekey;
+			const poolWallet = new LocalWallet(poolPrivkey, testVersion ? 1 : 0);
+
+			const psbt = new bitcoin.Psbt({ network });
+
+			const inscriptionList = await getBrc20TransferableInscriptionUtxoByAddress(
+				poolAddress,
+				ticker
+			);
+
+			console.log("inscriptionList :>> ", inscriptionList);
+			const btcUtxos = await getBtcUtxoByAddress(poolAddress);
+
+			const existedInscription = inscriptionList.find(
+				(inscription) =>
+					inscription.data.tick.toUpperCase() == ticker.toUpperCase() &&
+					inscription.data.amt == poolSendBrc20Amount
+			);
+
+			if (!existedInscription) {
+				return {
+					success: false,
+					message: `No inscription of ${ticker} - ${poolSendBrc20Amount} at address ${userAddress}`,
+					payload: undefined,
+				};
+			}
+
+			const inscriptionData = await getInscriptionData(
+				poolAddress,
+				existedInscription.inscriptionId
+			);
+
+			psbt.addInput({
+				hash: inscriptionData.txid,
+				index: inscriptionData.vout,
+				witnessUtxo: {
+					value: inscriptionData.satoshi,
+					script: Buffer.from(inscriptionData.scriptPk, "hex"),
+				},
+				tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
+			});
+
+			psbt.addOutput({
+				address: userAddress,
+				value: inscriptionData.satoshi,
+			});
+
+			// add btc utxo input
+			let totalBtcAmount = 0;
+
+			for (const btcutxo of btcUtxos) {
+				const fee = calculateTxFee(psbt, feeRate);
+				if (totalBtcAmount < fee && btcutxo.value > 10000) {
+					totalBtcAmount += btcutxo.value;
+
+					psbt.addInput({
+						hash: btcutxo.txid,
+						index: btcutxo.vout,
+						witnessUtxo: {
+							value: btcutxo.value,
+							script: Buffer.from(btcutxo.scriptpubkey as string, "hex"),
+						},
+						tapInternalKey: Buffer.from(userPubkey, "hex").slice(1, 33),
+					});
+				}
+			}
+
+			const fee = calculateTxFee(psbt, feeRate);
+
+			if (totalBtcAmount < fee) throw "BTC balance is not enough";
+
+			psbt.addOutput({
+				address: poolAddress,
+				value: totalBtcAmount - fee,
+			});
+
+			const poolSignedPsbt = await poolWallet.signPsbt(psbt);
+			const poolTx = poolSignedPsbt.extractTransaction();
+			const poolTxHex = poolTx.toHex();
+
+			const poolTxId = await pushRawTx(poolTxHex);
+
+			// db features
+			if (poolTxId) {
+				let updatedPoolInfo: any;
+
+				updatedPoolInfo = await Brc20PoolInfoModal.findOneAndUpdate(
+					{ address: poolAddress },
+					{
+						$set: {
+							safeTokenAmount: isPoolAddressExisted.safeTokenAmount - poolSendBrc20Amount,
+							btcAmount: isPoolAddressExisted.btcAmount + poolReceiveBtcAmount,
+							volume: isPoolAddressExisted.volume + poolReceiveBtcAmount,
+							isLocked: false,
+						},
+					}
+				);
+
+				const newBrc20Transaction = new Brc20TransactionInfoModal({
+					poolAddress: poolAddress,
+					userAddress: userAddress,
+					txId: poolTxId,
+					tokenAmount: poolSendBrc20Amount,
+					btcAmount: poolReceiveBtcAmount,
+					swapType: 1,
+				});
+
+				await newBrc20Transaction.save();
+
+				if (!updatedPoolInfo) {
+					await Brc20PoolInfoModal.findOneAndUpdate(
+						{ address: poolAddress },
+						{ $set: { isLocked: false } }
+					);
+
+					return {
+						success: false,
+						message: `No pool found at address ${poolAddress}`,
+						payload: undefined,
+					};
+				}
+
+				// socket connection with Front end of price, volume, runeAmount, btcAmount
+				io.emit("brc20-pool-socket", getBrc20PullInfo());
+
+				return {
+					success: true,
+					message: `Push swap psbt successfully`,
+					payload: poolTxId,
+				};
+			} else {
 				await Brc20PoolInfoModal.findOneAndUpdate(
 					{ address: poolAddress },
 					{ $set: { isLocked: false } }
@@ -846,15 +908,6 @@ export const poolTransferBrc20 = async (
 					payload: undefined,
 				};
 			}
-
-			// socket connection with Front end of price, volume, runeAmount, btcAmount
-			io.emit("brc20-pool-socket", getBrc20PullInfo());
-
-			return {
-				success: true,
-				message: `Push swap psbt successfully`,
-				payload: txId,
-			};
 		} else {
 			await Brc20PoolInfoModal.findOneAndUpdate(
 				{ address: poolAddress },
@@ -863,7 +916,7 @@ export const poolTransferBrc20 = async (
 
 			return {
 				success: false,
-				message: `No pool found at address ${poolAddress}`,
+				message: `User ${userAddress} not paid for Brc20 transfer`,
 				payload: undefined,
 			};
 		}
@@ -974,7 +1027,7 @@ export const generateUserBuyBtcSellBrc20Psbt = async (
 		index: matchedTickerInfo.vout,
 		witnessUtxo: {
 			value: matchedTickerInfo.satoshi,
-			script: Buffer.from(poolPubkey, "hex"),
+			script: Buffer.from(matchedTickerInfo.scriptPk, "hex"),
 		},
 		tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
 	});
@@ -1181,6 +1234,7 @@ export const pushBrc20SwapPsbt = async (
 
 			// socket connection with Front end of price, volume, runeAmount, btcAmount
 			io.emit("brc20-pool-socket", getBrc20PullInfo());
+			io.emit("set-pool-list");
 
 			return {
 				success: true,
@@ -1219,10 +1273,20 @@ export const pushRuneSwapPsbt = async (
 	userAddress: string,
 	poolAddress: string,
 	usedTransactionList: string[],
-	swapType: number
+	swapType: number,
+	usingTxInfo: string[]
 ) => {
 	const isPoolAddressExisted = await RunePoolInfoModal.findOne({
 		address: poolAddress,
+	});
+
+
+	usingTxInfo.map(async (item) => {
+		const newUsedTxInfo = new UsedTxInfoModal({
+			txid: item,
+		});
+
+		await newUsedTxInfo.save();
 	});
 
 	if (!isPoolAddressExisted) {
@@ -1249,6 +1313,14 @@ export const pushRuneSwapPsbt = async (
 		// broadcast tx
 		const txId = await combinePsbt(psbt, poolSignedPsbt.toHex(), userSignedPsbt.toHex());
 
+		usingTxInfo.map(async (item) => {
+			const newUsedTxInfo = new UsedTxInfoModal({
+				txid: item,
+			});
+
+			await newUsedTxInfo.save();
+		});
+
 		// db features
 		if (txId) {
 			let updatedPoolInfo: any;
@@ -1263,7 +1335,7 @@ export const pushRuneSwapPsbt = async (
 						},
 						{
 							$set: {
-								runeAmount: isPoolAddressExisted.tokenAmount - userRuneAmount,
+								tokenAmount: isPoolAddressExisted.tokenAmount - userRuneAmount,
 								btcAmount: isPoolAddressExisted.btcAmount + btcAmount,
 								volume: isPoolAddressExisted.volume + btcAmount,
 								isLocked: false,
@@ -1304,7 +1376,7 @@ export const pushRuneSwapPsbt = async (
 						{ address: poolAddress },
 						{
 							$set: {
-								runeAmount: isPoolAddressExisted.tokenAmount + userRuneAmount,
+								tokenAmount: isPoolAddressExisted.tokenAmount + userRuneAmount,
 								btcAmount: isPoolAddressExisted.btcAmount - btcAmount,
 								volume: isPoolAddressExisted.volume + btcAmount,
 								isLocked: false,
@@ -1356,6 +1428,7 @@ export const pushRuneSwapPsbt = async (
 
 			// socket connection with Front end of price, volume, runeAmount, btcAmount
 			io.emit("rune-pool-socket", getRunePullInfo());
+			io.emit("set-pool-list");
 
 			return {
 				success: true,

@@ -68,13 +68,14 @@ marketplaceRouter.post("/generateUserBuyBtcSellRunePsbt", async (req, res, next)
 // Pool sign psbt user buy btc and sell rune and update pool database
 marketplaceRouter.post("/poolTransferBrc20", async (req, res, next) => {
 	try {
-		const { userPubkey, userAddress, userReceiveBrc20Amount, userSendBtcAmount, poolAddress } =
+		const { userSignedPsbt, userPubkey, userAddress, userBuyBrc20Amount, userSendBtcAmount, poolAddress } =
 			req.body;
 
 		const payload = await poolTransferBrc20(
+			userSignedPsbt,
 			userPubkey,
 			userAddress,
-			userReceiveBrc20Amount,
+			userBuyBrc20Amount,
 			userSendBtcAmount,
 			poolAddress
 		);
@@ -179,7 +180,10 @@ marketplaceRouter.post("/pushRuneSwapPsbt", async (req, res, next) => {
 			poolAddress,
 			usedTransactionList,
 			swapType,
+			usingTxInfo
 		} = req.body;
+
+		console.log('usingTxInfo :>> ', usingTxInfo);
 
 		const payload = await pushRuneSwapPsbt(
 			psbt,
@@ -192,7 +196,8 @@ marketplaceRouter.post("/pushRuneSwapPsbt", async (req, res, next) => {
 			userAddress,
 			poolAddress,
 			usedTransactionList,
-			swapType
+			swapType,
+			usingTxInfo
 		);
 
 		return res.status(200).send(payload);

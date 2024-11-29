@@ -196,7 +196,7 @@ export const getHistorySocket = async () => {
 			userAddress: item.userAddress,
 			swapType: item.swapType,
 			txId: item.txId,
-			createdAt: item.createdAt.getDate(),
+			createdAt: item.createdAt,
 		};
 	});
 
