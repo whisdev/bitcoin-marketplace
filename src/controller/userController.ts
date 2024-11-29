@@ -4,10 +4,7 @@ import dotenv from 'dotenv';
 const ecc = require("@bitcoinerlab/secp256k1");
 bitcoin.initEccLib(ecc);
 
-import { getBtcUtxoByAddress, getRuneBalanceListByAddress, getRuneUtxoByAddress, getBtcBalanceByAddress } from "../service/service";
-import PoolInfoModal from "../model/RunePoolInfo";
-import { IRuneUtxo } from "../utils/type";
-import { OPENAPI_UNISAT_TOKEN } from "../config/config";
+import { getBtcUtxoByAddress, getRuneBalanceListByAddress, getRuneUtxoByAddress, getBtcBalanceByAddress, getBrc20SummaryByAddress } from "../service/service";
 
 dotenv.config();
 
@@ -22,6 +19,20 @@ export const getUserRuneInfo = async (userAddress: string) => {
         success: true,
         message: "get user rune info successfully",
         payload: userRuneInfo,
+    };
+}
+
+export const getUserBrc20Info = async (userAddress: string) => {
+
+    const response = await getBrc20SummaryByAddress(userAddress);
+   
+    const userBrc20Info = response;
+    console.log('userRuneInfo :>> ', userBrc20Info);
+
+    return {
+        success: true,
+        message: "get user rune info successfully",
+        payload: userBrc20Info,
     };
 }
 
