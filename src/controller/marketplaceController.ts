@@ -487,7 +487,7 @@ export const generateUserBuyBtcSellRunePsbt = async (
 			usedTxList,
 			poolRuneAmount: requiredAmount,
 			userRuneAmount: requiredAmount,
-			usingTxInfo : []
+			usingTxInfo: [],
 		},
 	};
 };
@@ -1279,7 +1279,6 @@ export const pushRuneSwapPsbt = async (
 	const isPoolAddressExisted = await RunePoolInfoModal.findOne({
 		address: poolAddress,
 	});
-
 
 	usingTxInfo.map(async (item) => {
 		const newUsedTxInfo = new UsedTxInfoModal({

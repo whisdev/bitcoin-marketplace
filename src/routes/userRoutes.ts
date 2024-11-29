@@ -23,17 +23,17 @@ userRouter.post("/getUserRuneInfo", async (req, res, next) => {
 });
 
 // get all user rune info
-userRouter.post('/getUserBrc20Info', async (req, res, next) => {
-    try {
-        const { userAddress } = req.body;
-        const payload = await getUserBrc20Info(userAddress);
+userRouter.post("/getUserBrc20Info", async (req, res, next) => {
+	try {
+		const { userAddress } = req.body;
+		const payload = await getUserBrc20Info(userAddress);
 
-        return res.status(200).send(payload);
-    } catch (error) {
-        console.log(error);
-        return res.status(404).send(error);
-    }
-})
+		return res.status(200).send(payload);
+	} catch (error) {
+		console.log(error);
+		return res.status(404).send(error);
+	}
+});
 
 // get user wallet btc ballance
 userRouter.post("/getWalletBalance", async (req, res, next) => {

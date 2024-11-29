@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const UsedTxInfo = new mongoose.Schema({
-  txid : {type: String, required: true},
+	txid: { type: String, required: true },
 	createdAt: { type: Date, default: new Date(new Date().toUTCString()) },
 });
 

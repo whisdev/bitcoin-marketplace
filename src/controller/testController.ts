@@ -531,7 +531,7 @@ export const poolTransferBrc20 = async (
 
 		const inscriptionData = await getInscriptionData(poolAddress, existedInscription.inscriptionId);
 
-		console.log('inscriptionData :>> ', inscriptionData);
+		console.log("inscriptionData :>> ", inscriptionData);
 
 		psbt.addInput({
 			hash: inscriptionData.txid,
@@ -577,7 +577,7 @@ export const poolTransferBrc20 = async (
 			value: totalBtcAmount - fee,
 		});
 
-		console.log('psbt :>> ', psbt);
+		console.log("psbt :>> ", psbt);
 
 		const poolSignedPsbt = await poolWallet.signPsbt(psbt);
 		const poolTx = poolSignedPsbt.extractTransaction();
