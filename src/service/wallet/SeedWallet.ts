@@ -8,7 +8,7 @@ import ecc from "@bitcoinerlab/secp256k1";
 import dotenv from "dotenv";
 
 import app from "../../server";
-import { ISeedWallet } from '../../utils/type';
+import { ISeedWallet } from "../../utils/type";
 
 dotenv.config();
 initEccLib(ecc);
@@ -17,63 +17,54 @@ const ECPair = ECPairFactory(ecc);
 const bip32 = BIP32Factory(ecc);
 
 export class SeedWallet {
-  private network: bitcoin.networks.Network;
-  public ecPair: ECPairInterface;
-  public address: string;
-  public output: Buffer;
-  public publicKey: string;
-  private bip32: BIP32Interface;
+	private network: bitcoin.networks.Network;
+	public ecPair: ECPairInterface;
+	public address: string;
+	public output: Buffer;
+	public publicKey: string;
+	private bip32: BIP32Interface;
 
-  constructor(walletParam: ISeedWallet) {
-    if (walletParam.networkType == "mainnet") {
-      this.network = networks.bitcoin;
+	constructor(walletParam: ISeedWallet) {
+		if (walletParam.networkType == "mainnet") {
+			this.network = networks.bitcoin;
+		} else {
+			this.network = networks.testnet;
+		}
 
-    } else {
-      this.network = networks.testnet;
-    }
+		const mnemonic = walletParam.seed;
 
-    const mnemonic = walletParam.seed;
+		let hdPath = `m/86'/0'/0'/0/${walletParam.index}`;
+		if (!bip39.validateMnemonic(mnemonic)) {
+			throw new Error("invalid mnemonic");
+		}
+		this.bip32 = bip32.fromSeed(
+			bip39.mnemonicToSeedSync(mnemonic),
 
-    let hdPath = `m/86'/0'/0'/0/${walletParam.index}`;
-    if (!bip39.validateMnemonic(mnemonic)) {
+			this.network
+		);
+		this.ecPair = ECPair.fromPrivateKey(this.bip32.derivePath(hdPath).privateKey!, {
+			network: this.network,
+		});
+		const { address, output } = bitcoin.payments.p2tr({
+			internalPubkey: this.ecPair.publicKey.subarray(1, 33),
+			network: this.network,
+		});
+		this.address = address as string;
+		this.output = output as Buffer;
+		this.publicKey = this.ecPair.publicKey.toString("hex");
+	}
 
-      throw new Error("invalid mnemonic");
-    }
-    this.bip32 = bip32.fromSeed(
-
-      bip39.mnemonicToSeedSync(mnemonic),
-
-      this.network
-    );
-    this.ecPair = ECPair
-      .fromPrivateKey(
-        this.bip32.derivePath(hdPath).privateKey!,
-        { network: this.network }
-      );
-    const { address, output } = bitcoin.payments
-      .p2tr({
-        internalPubkey: this.ecPair.publicKey
-          .subarray(1, 33),
-        network: this.network,
-      });
-    this.address = address as string;
-    this.output = output as Buffer;
-    this.publicKey = this.ecPair.publicKey
-      .toString("hex");
-  }
-
-  signPsbt(psbt: bitcoin.Psbt, ecPair: ECPairInterface): bitcoin.Psbt {
-    const tweakedChildNode = ecPair.tweak(
-      bitcoin.crypto.taggedHash("TapTweak", ecPair.publicKey.subarray(1, 33))
-    );
-    // Set Global Variable for network type
-    // app.locals.networkType = SEED;
-    for (let i = 0; i < psbt.inputCount; i++) {
-
-      psbt.signInput(i, tweakedChildNode);
-      psbt.validateSignaturesOfInput(i, () => true);
-      psbt.finalizeInput(i);
-    }
-    return psbt;
-  }
+	signPsbt(psbt: bitcoin.Psbt, ecPair: ECPairInterface): bitcoin.Psbt {
+		const tweakedChildNode = ecPair.tweak(
+			bitcoin.crypto.taggedHash("TapTweak", ecPair.publicKey.subarray(1, 33))
+		);
+		// Set Global Variable for network type
+		// app.locals.networkType = SEED;
+		for (let i = 0; i < psbt.inputCount; i++) {
+			psbt.signInput(i, tweakedChildNode);
+			psbt.validateSignaturesOfInput(i, () => true);
+			psbt.finalizeInput(i);
+		}
+		return psbt;
+	}
 }

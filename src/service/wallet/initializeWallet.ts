@@ -4,18 +4,14 @@ import { SeedWallet } from "./SeedWallet";
 
 initEccLib(ecc as any);
 
-const initializeWallet = (
-  networkType: string,
-  seed: string,
-  index: number
-): SeedWallet => {
-  const wallet: SeedWallet = new SeedWallet({
-    networkType: networkType,
-    seed: seed,
-    index: index,
-  });
+const initializeWallet = (networkType: string, seed: string, index: number): SeedWallet => {
+	const wallet: SeedWallet = new SeedWallet({
+		networkType: networkType,
+		seed: seed,
+		index: index,
+	});
 
-  return wallet;
+	return wallet;
 };
 
 export default initializeWallet;
