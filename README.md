@@ -13,29 +13,27 @@ The Rune swap Project is designed to provide a seamless and secure way to swap r
 - **Efficient:** Utilizes the Bitcoin CLI for efficient and reliable operations.
 - **Open Source:** Fully open-source and available for community contributions.
 
-1. Transfer claim amount of rune token from User wallet to Receiver wallet. 
+1. Transfer claim amount of rune token from User wallet to Receiver wallet.
 
-    - Get rune utxos and btc utxos in user wallet.
+   - Get rune utxos and btc utxos in user wallet.
 
-    - Build PSBT with user rune token and utxo balance as input and OP_RETURN value and claim amount of rune token, return rune token, change utxo as output using user wallet publickey, address, and receiver wallet address.
+   - Build PSBT with user rune token and utxo balance as input and OP_RETURN value and claim amount of rune token, return rune token, change utxo as output using user wallet publickey, address, and receiver wallet address.
 
-    - Send and Sign PSBT with user wallet.
-
+   - Send and Sign PSBT with user wallet.
 
 2. After confirmed transaction, Transfer and swap rune token from Receiver wallet to swaping wallet.
 
-    - Get rune utxos and btc utxos in receiver wallet.
+   - Get rune utxos and btc utxos in receiver wallet.
 
-    - Build PSBT with receiver rune token and utxo balance as input and OP_RETURN value and claim amount of rune token, return rune token, change utxo as output using reciver wallet WIF privatekey, address, and swaping wallet address.
-    (At that time, set OP_RETURN as invalid)
+   - Build PSBT with receiver rune token and utxo balance as input and OP_RETURN value and claim amount of rune token, return rune token, change utxo as output using reciver wallet WIF privatekey, address, and swaping wallet address.
+     (At that time, set OP_RETURN as invalid)
 
-    - Sign PSBT with receiver wallet.
-
+   - Sign PSBT with receiver wallet.
 
 P.S. All necessary values are in network.config.ts.
 
-
 3. **Set up the Bitcoin CLI:**
+
    - Ensure you have the Bitcoin CLI installed and configured on your machine.
    - Update the `.env` file with your Bitcoin CLI configuration.
 
@@ -48,7 +46,6 @@ P.S. All necessary values are in network.config.ts.
 
 1. **Access the Application:**
    - Open your browser and navigate to `https://stonefaceords.com/`.
-   
 2. **swap Runes:**
    - Follow the on-screen instructions to swap your runes securely.
    - Confirm the transaction through the Bitcoin CLI.

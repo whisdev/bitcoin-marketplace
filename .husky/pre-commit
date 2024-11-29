@@ -1,0 +1,26 @@
+echo '🏗️👷 Styling, testing and building your project before committing'
+
+yarn format && yarn check-format ||
+(
+    echo '❌ Prettier Check Failed. Run yarn format, add changes and try commit again ❌';
+    false;
+)
+
+# Check tsconfig standards
+yarn check-types ||
+(
+    echo '❌ Failed Type check! Make the changes required above ❌'
+    false;
+)
+
+# If everything passes... Now we can commit
+echo '🤔🤔🤔🤔... Alright... Code looks good to me... Trying to build now. 🤔🤔🤔🤔'
+
+yarn build ||
+(
+    echo '❌ Your build is failed! Next build failed: View the errors above to see why❌'
+    false;
+)
+
+# If everything passes... Now we can commit
+echo '✅✅✅✅ You win this time... I am committing this now. ✅✅✅✅'
