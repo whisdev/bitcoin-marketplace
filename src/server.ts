@@ -15,7 +15,7 @@ import userRouter from './routes/userRoutes';
 import testRouter from './routes/testRoutes';
 
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 9030;
 
 // Connect to the MongoDB database
 connectMongoDB(MongoDBUrl as string);
