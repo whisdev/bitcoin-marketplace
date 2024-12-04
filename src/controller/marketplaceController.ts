@@ -260,7 +260,7 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 			userRuneAmount: requiredAmount,
 			poolRuneAmount: tokenSum - requiredAmount,
 			usingTxInfo,
-			scriptpubkey
+			scriptpubkey,
 		},
 	};
 };
@@ -309,7 +309,7 @@ export const generateUserBuyBtcSellRunePsbt = async (
 	const userBtcUtxos = await getBtcUtxoByAddress(userAddress);
 	const userRuneInfo = await getRuneUtxoByAddress(userAddress, runeId as string);
 	const usedTxInfo = await UsedTxInfoModal.find();
-	const usingTxInfo: string[] =[];
+	const usingTxInfo: string[] = [];
 
 	const userRuneUtxos = userRuneInfo.runeUtxos.filter(
 		(item) => !usedTxInfo?.find((i) => i.txid === item.txid)
@@ -1332,7 +1332,7 @@ export const pushRuneSwapPsbt = async (
 			usingTxInfo.map(async (item) => {
 				const newUsedTxInfo = new UsedTxInfoModal({
 					txid: item,
-					confirmedTx : txId
+					confirmedTx: txId,
 				});
 
 				await newUsedTxInfo.save();

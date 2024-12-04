@@ -187,7 +187,7 @@ marketplaceRouter.post("/pushRuneSwapPsbt", async (req, res, next) => {
 			usedTransactionList,
 			swapType,
 			usingTxInfo,
-			scriptpubkey
+			scriptpubkey,
 		} = req.body;
 
 		console.log("usingTxInfo :>> ", usingTxInfo);

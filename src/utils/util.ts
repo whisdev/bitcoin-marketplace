@@ -109,7 +109,6 @@ export const checkConfirmedTx = async () => {
 					}
 				});
 
-
 				unconfirmedBrc20Txs.map(async (unconfirmedTx) => {
 					if (txIds.data.includes(unconfirmedTx.txId)) {
 						const newSwapHistory = new SwapHistoryModal({
@@ -132,11 +131,11 @@ export const checkConfirmedTx = async () => {
 				unConfirmedUsedTxs.map(async (unconfirmedUsedTx) => {
 					if (txIds.data.includes(unconfirmedUsedTx.confirmedTx)) {
 						await UsedTxInfoModal.deleteOne({
-							txid: unconfirmedUsedTx.txid
-						})
+							txid: unconfirmedUsedTx.txid,
+						});
 					}
-				})
-				
+				});
+
 				io.emit("mempool-socket", await getHistorySocket());
 				io.emit("mempool-price-socket", await getPrice());
 			}
