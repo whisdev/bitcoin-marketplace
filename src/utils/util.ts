@@ -16,6 +16,7 @@ import Brc20PoolInfoModal from "../model/Brc20PoolInfo";
 
 import { io } from "../server";
 import { getPrice } from "../service/service";
+import UsedTxInfoModal from "../model/UsedTxInfo";
 
 export const splitData = (data: Array<any>, bundleSize: number): Array<any> => {
 	// initialize new splited Data array
@@ -84,6 +85,7 @@ export const checkConfirmedTx = async () => {
 
 				const unconfirmedRuneTxs = await RuneTransactionInfoModal.find();
 				const unconfirmedBrc20Txs = await Brc20TransactionInfoModal.find();
+				const unConfirmedUsedTxs = await UsedTxInfoModal.find();
 
 				console.log("after mempool block txids");
 
@@ -107,6 +109,7 @@ export const checkConfirmedTx = async () => {
 					}
 				});
 
+
 				unconfirmedBrc20Txs.map(async (unconfirmedTx) => {
 					if (txIds.data.includes(unconfirmedTx.txId)) {
 						const newSwapHistory = new SwapHistoryModal({
@@ -126,6 +129,14 @@ export const checkConfirmedTx = async () => {
 					}
 				});
 
+				unConfirmedUsedTxs.map(async (unconfirmedUsedTx) => {
+					if (txIds.data.includes(unconfirmedUsedTx.confirmedTx)) {
+						await UsedTxInfoModal.deleteOne({
+							txid: unconfirmedUsedTx.txid
+						})
+					}
+				})
+				
 				io.emit("mempool-socket", await getHistorySocket());
 				io.emit("mempool-price-socket", await getPrice());
 			}

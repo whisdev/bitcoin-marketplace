@@ -102,6 +102,7 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 	const poolInputArray: number[] = [];
 	let cnt = 0;
 	let tokenSum = 0;
+	let scriptpubkey;
 	const txList = [];
 	const usedTxList = [];
 	const runeBlock = Number((runeId as string).split(":")[0]);
@@ -125,6 +126,7 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 		poolInputArray.push(cnt++);
 		tokenSum += runeutxo.amount;
 		txList.push(runeutxo.txid);
+		scriptpubkey = runeutxo.scriptpubkey;
 	}
 
 	// Add any missing rune UTXOs from transaction history
@@ -136,8 +138,8 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 			hash: runeutxo.txId,
 			index: runeutxo.vout,
 			witnessUtxo: {
-				value: runeutxo.poolRuneAmount,
-				script: Buffer.from(poolPubkey, "hex"),
+				value: 546,
+				script: Buffer.from(runeutxo.scriptpubkey, "hex"),
 			},
 			tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
 		});
@@ -258,6 +260,7 @@ export const generateUserBuyRuneSellBtcPsbt = async (
 			userRuneAmount: requiredAmount,
 			poolRuneAmount: tokenSum - requiredAmount,
 			usingTxInfo,
+			scriptpubkey
 		},
 	};
 };
@@ -304,7 +307,13 @@ export const generateUserBuyBtcSellRunePsbt = async (
 	// Fetch UTXOs
 	const poolBtcUtxos = await getBtcUtxoByAddress(poolAddress);
 	const userBtcUtxos = await getBtcUtxoByAddress(userAddress);
-	const userRuneUtxos = await getRuneUtxoByAddress(userAddress, runeId as string);
+	const userRuneInfo = await getRuneUtxoByAddress(userAddress, runeId as string);
+	const usedTxInfo = await UsedTxInfoModal.find();
+	const usingTxInfo: string[] =[];
+
+	const userRuneUtxos = userRuneInfo.runeUtxos.filter(
+		(item) => !usedTxInfo?.find((i) => i.txid === item.txid)
+	);
 
 	// Prepare PSBT and initialize values
 	const psbt = new bitcoin.Psbt({ network });
@@ -318,7 +327,7 @@ export const generateUserBuyBtcSellRunePsbt = async (
 	const runeIdx = Number((runeId as string).split(":")[1]);
 
 	// Add pool rune UTXO inputs to PSBT
-	for (const runeutxo of userRuneUtxos.runeUtxos) {
+	for (const runeutxo of userRuneUtxos) {
 		if (tokenSum >= requiredAmount) break;
 
 		psbt.addInput({
@@ -334,6 +343,7 @@ export const generateUserBuyBtcSellRunePsbt = async (
 		userInputArray.push(cnt++);
 		tokenSum += runeutxo.amount;
 		txList.push(runeutxo.txid);
+		usingTxInfo.push(runeutxo.txid);
 	}
 
 	// Check if enough rune is gathered
@@ -487,7 +497,7 @@ export const generateUserBuyBtcSellRunePsbt = async (
 			usedTxList,
 			poolRuneAmount: requiredAmount,
 			userRuneAmount: requiredAmount,
-			usingTxInfo: [],
+			usingTxInfo: usingTxInfo,
 		},
 	};
 };
@@ -664,7 +674,7 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
 	poolInputArray.push(cnt++);
 
 	for (const btcutxo of userBtcUtxos) {
-		const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
+		const fee = calculateTxFee(psbt, feeRate) + requiredAmount;
 		if (userTotalBtcAmount >= fee) break;
 
 		if (btcutxo.value > SEND_UTXO_FEE_LIMIT) {
@@ -684,7 +694,7 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
 		}
 	}
 
-	const fee = calculateTxFee(psbt, feeRate) + userSendBtcAmount;
+	const fee = calculateTxFee(psbt, feeRate) + requiredAmount;
 
 	// Check if enough BTC balance is available
 	if (userTotalBtcAmount < fee) {
@@ -749,7 +759,7 @@ export const poolTransferBrc20 = async (
 
 		if (userTxId) {
 			console.log("userTxId :>> ", userTxId);
-			await delay(10000);
+			await delay(20000);
 
 			const feeRate = testVersion ? testFeeRate : await getFeeRate();
 			const poolInfoResult = await Brc20PoolInfoModal.findOne({
@@ -770,28 +780,23 @@ export const poolTransferBrc20 = async (
 			const poolWallet = new LocalWallet(poolPrivkey, testVersion ? 1 : 0);
 
 			const psbt = new bitcoin.Psbt({ network });
-
-			const inscriptionList = await getBrc20TransferableInscriptionUtxoByAddress(
-				poolAddress,
-				ticker
-			);
-
-			console.log("inscriptionList :>> ", inscriptionList);
 			const btcUtxos = await getBtcUtxoByAddress(poolAddress);
 
-			const existedInscription = inscriptionList.find(
-				(inscription) =>
-					inscription.data.tick.toUpperCase() == ticker.toUpperCase() &&
-					inscription.data.amt == poolSendBrc20Amount
-			);
+			let existedInscription: any;
 
-			if (!existedInscription) {
-				return {
-					success: false,
-					message: `No inscription of ${ticker} - ${poolSendBrc20Amount} at address ${userAddress}`,
-					payload: undefined,
-				};
-			}
+			do {
+				const inscriptionList = await getBrc20TransferableInscriptionUtxoByAddress(
+					poolAddress,
+					ticker
+				);
+				console.log("inscriptionList :>> ", inscriptionList);
+
+				existedInscription = inscriptionList.find(
+					(inscription) =>
+						inscription.data.tick.toUpperCase() === ticker.toUpperCase() &&
+						inscription.data.amt === poolSendBrc20Amount
+				);
+			} while (!existedInscription);
 
 			const inscriptionData = await getInscriptionData(
 				poolAddress,
@@ -976,6 +981,20 @@ export const generateUserBuyBtcSellBrc20Psbt = async (
 	const poolPubkey = poolInfoResult.publickey;
 
 	const userBtcUtxos = await getBtcUtxoByAddress(userAddress);
+
+	let existedInscription: any;
+
+	// do {
+	// 	const inscriptionList = await getBrc20TransferableInscriptionUtxoByAddress(userAddress, ticker);
+	// 	console.log("inscriptionList :>> ", inscriptionList);
+
+	// 	existedInscription = inscriptionList.find(
+	// 		(inscription) =>
+	// 			inscription.data.tick.toUpperCase() === ticker.toUpperCase() &&
+	// 			inscription.data.amt === userSendBrc20Amount
+	// 	);
+	// } while (!existedInscription);
+
 	const transferableBrc20TickerInfo = await getBrc20TransferableInscriptionUtxoByAddress(
 		userAddress,
 		ticker
@@ -1170,7 +1189,7 @@ export const pushBrc20SwapPsbt = async (
 						{ address: poolAddress },
 						{
 							$set: {
-								safeTokenAmount: isPoolAddressExisted.unsafeTokenAmount - brc20Amount,
+								safeTokenAmount: isPoolAddressExisted.safeTokenAmount - brc20Amount,
 								btcAmount: isPoolAddressExisted.btcAmount + btcAmount,
 								volume: isPoolAddressExisted.volume + btcAmount,
 								isLocked: false,
@@ -1274,18 +1293,11 @@ export const pushRuneSwapPsbt = async (
 	poolAddress: string,
 	usedTransactionList: string[],
 	swapType: number,
-	usingTxInfo: string[]
+	usingTxInfo: string[],
+	scriptpubkey: string
 ) => {
 	const isPoolAddressExisted = await RunePoolInfoModal.findOne({
 		address: poolAddress,
-	});
-
-	usingTxInfo.map(async (item) => {
-		const newUsedTxInfo = new UsedTxInfoModal({
-			txid: item,
-		});
-
-		await newUsedTxInfo.save();
 	});
 
 	if (!isPoolAddressExisted) {
@@ -1312,18 +1324,19 @@ export const pushRuneSwapPsbt = async (
 		// broadcast tx
 		const txId = await combinePsbt(psbt, poolSignedPsbt.toHex(), userSignedPsbt.toHex());
 
-		usingTxInfo.map(async (item) => {
-			const newUsedTxInfo = new UsedTxInfoModal({
-				txid: item,
-			});
-
-			await newUsedTxInfo.save();
-		});
-
 		// db features
 		if (txId) {
 			let updatedPoolInfo: any;
 			let newTxInfo: any;
+
+			usingTxInfo.map(async (item) => {
+				const newUsedTxInfo = new UsedTxInfoModal({
+					txid: item,
+					confirmedTx : txId
+				});
+
+				await newUsedTxInfo.save();
+			});
 
 			switch (swapType) {
 				// user buy btc and sell rune
@@ -1364,6 +1377,7 @@ export const pushRuneSwapPsbt = async (
 						btcAmount: btcAmount,
 						poolRuneAmount: poolRuneAmount,
 						userRuneAmount: userRuneAmount,
+						scriptpubkey: scriptpubkey,
 					});
 
 					await newTxInfo.save();
@@ -1405,6 +1419,7 @@ export const pushRuneSwapPsbt = async (
 						btcAmount: btcAmount,
 						poolRuneAmount: poolRuneAmount,
 						userRuneAmount: userRuneAmount,
+						scriptpubkey: scriptpubkey,
 					});
 
 					await newTxInfo.save();
