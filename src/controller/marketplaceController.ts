@@ -565,8 +565,18 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
 
 		const brc20TickerInfo = await getBrc20TickerInfoByAddress(poolAddress, ticker);
 
-		if (brc20TickerInfo.availableBalance < userBuyBrc20Amount)
-			throw `No sufficient available BRC20 amount`;
+		if (brc20TickerInfo.availableBalance < userBuyBrc20Amount){
+			await Brc20PoolInfoModal.findOneAndUpdate(
+				{ address: poolAddress },
+				{ $set: { isLocked: false } }
+			);
+	
+			return {
+				success: false,
+				message: "No sufficient available BRC20 amount",
+				payload: undefined,
+			};
+		}
 
 		console.log(
 			"poolAddress, feeRate, ticker, userBuyBrc20Amount :>> ",
@@ -628,7 +638,18 @@ export const generateUserBuyBrc20SellBtcPsbt = async (
 		const fee =
 			calculateTxFee(psbt, feeRate) + inscriptionPayAmount + requiredAmount + userSendBrc20Fee;
 
-		if (totalBtcAmount < fee) throw `BTC balance in User of ${userAddress} is not enough`;
+		if (totalBtcAmount < fee) {
+			await Brc20PoolInfoModal.findOneAndUpdate(
+				{ address: poolAddress },
+				{ $set: { isLocked: false } }
+			);
+	
+			return {
+				success: false,
+				message: `BTC balance in User of ${userAddress} is not enough`,
+				payload: undefined,
+			};
+		}
 
 		psbt.addOutput({
 			address: userAddress,
@@ -850,7 +871,18 @@ export const poolTransferBrc20 = async (
 
 			const fee = calculateTxFee(psbt, feeRate);
 
-			if (totalBtcAmount < fee) throw "BTC balance is not enough";
+			if (totalBtcAmount < fee) {
+				await Brc20PoolInfoModal.findOneAndUpdate(
+					{ address: poolAddress },
+					{ $set: { isLocked: false } }
+				);
+		
+				return {
+					success: false,
+					message: `BTC balance is not enough`,
+					payload: undefined,
+				};
+			}
 
 			console.log("totalBtcAmount < fee :>> ", totalBtcAmount, fee);
 
@@ -999,8 +1031,18 @@ export const generateUserBuyBtcSellBrc20Psbt = async (
 		console.log("address, ticker :>> ", userAddress, ticker);
 		console.log("brc20TickerInfo :>> ", brc20TickerInfo);
 
-		if (brc20TickerInfo.availableBalance < userSendBrc20Amount)
-			throw `No sufficient available BRC20 amount`;
+		if (brc20TickerInfo.availableBalance < userSendBrc20Amount) {
+			await Brc20PoolInfoModal.findOneAndUpdate(
+				{ address: poolAddress },
+				{ $set: { isLocked: false } }
+			);
+	
+			return {
+				success: false,
+				message: `No sufficient available BRC20 amount`,
+				payload: undefined,
+			};
+		}
 
 		const orderInscriptionInfo = await createOrderBrc20Transfer(
 			userAddress,
@@ -1047,7 +1089,7 @@ export const generateUserBuyBtcSellBrc20Psbt = async (
 
 			return {
 				success: false,
-				message: "BTC balance in User of ${userAddress} is not enough",
+				message: `BTC balance in User of ${userAddress} is not enough`,
 				payload: undefined,
 			};
 		}
