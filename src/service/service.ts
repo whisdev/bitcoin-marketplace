@@ -429,8 +429,8 @@ export const generateUserInscribeBrc20Psbt = async (
 
 	const brc20TickerInfo = await getBrc20TickerInfoByAddress(address, ticker);
 
-	console.log('address, ticker :>> ', address, ticker);
-	console.log('brc20TickerInfo :>> ', brc20TickerInfo);
+	console.log("address, ticker :>> ", address, ticker);
+	console.log("brc20TickerInfo :>> ", brc20TickerInfo);
 
 	if (brc20TickerInfo.availableBalance < inscribeAmount)
 		throw `No sufficient available BRC20 amount`;

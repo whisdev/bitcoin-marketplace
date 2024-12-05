@@ -52,7 +52,9 @@ export const filterTransactionInfo = async (poolAddress: string, txList: Array<s
 		isUsed: false,
 	});
 
-	return txInfoList.filter((txInfo) => !txList.includes(txInfo.txId) && txInfo.isUsed === false && txInfo.swapType == 1);
+	return txInfoList.filter(
+		(txInfo) => !txList.includes(txInfo.txId) && txInfo.isUsed === false && txInfo.swapType == 1
+	);
 };
 
 export const checkConfirmedTx = async () => {

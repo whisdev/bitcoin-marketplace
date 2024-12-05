@@ -795,8 +795,8 @@ export const poolTransferBrc20 = async (
 				ticker
 			);
 			console.log("inscriptionList :>> ", inscriptionList);
-			console.log('poolSendBrc20Amount :>> ', poolSendBrc20Amount);
-			console.log('ticker :>> ', ticker);
+			console.log("poolSendBrc20Amount :>> ", poolSendBrc20Amount);
+			console.log("ticker :>> ", ticker);
 
 			existedInscription = inscriptionList.find(
 				(inscription) =>
@@ -805,7 +805,7 @@ export const poolTransferBrc20 = async (
 			);
 			// } while (!existedInscription);
 
-			console.log('existedInscription :>> ', existedInscription);
+			console.log("existedInscription :>> ", existedInscription);
 
 			const inscriptionData = await getInscriptionData(
 				poolAddress,
@@ -991,9 +991,9 @@ export const generateUserBuyBtcSellBrc20Psbt = async (
 
 	const userBtcUtxos = await getBtcUtxoByAddress(userAddress);
 
-	console.log('ticker :>> ', ticker);
-	console.log('userAddress :>> ', userAddress);
-	console.log('userBtcUtxos :>> ', userBtcUtxos);
+	console.log("ticker :>> ", ticker);
+	console.log("userAddress :>> ", userAddress);
+	console.log("userBtcUtxos :>> ", userBtcUtxos);
 
 	const transferableBrc20TickerInfo = await getBrc20TransferableInscriptionUtxoByAddress(
 		userAddress,
@@ -1004,9 +1004,9 @@ export const generateUserBuyBtcSellBrc20Psbt = async (
 	);
 
 	if (!matchedTickerInfo) {
-		console.log('userAddress :>> ', userAddress);
-		console.log('userPubkey :>> ', userPubkey);
-		
+		console.log("userAddress :>> ", userAddress);
+		console.log("userPubkey :>> ", userPubkey);
+
 		const psbt = await generateUserInscribeBrc20Psbt(
 			userAddress,
 			userPubkey,
@@ -1020,7 +1020,7 @@ export const generateUserBuyBtcSellBrc20Psbt = async (
 				{ address: poolAddress },
 				{ $set: { isLocked: false } }
 			);
-	
+
 			return {
 				success: false,
 				message: "Insufficient Rune balance in User",
@@ -1177,8 +1177,8 @@ export const generateUserBuyBtcSendBrc20Psbt = async (
 		return {
 			success: false,
 			message: `User ${userAddress} need to pay again for inscribe BRC20`,
-			payload: undefined
-		}
+			payload: undefined,
+		};
 	}
 
 	await delay(10000);
