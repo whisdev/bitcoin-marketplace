@@ -49,9 +49,10 @@ export const splitData = (data: Array<any>, bundleSize: number): Array<any> => {
 export const filterTransactionInfo = async (poolAddress: string, txList: Array<string>) => {
 	const txInfoList = await RuneTransactionInfoModal.find({
 		poolAddress: poolAddress,
+		isUsed: false,
 	});
 
-	return txInfoList.filter((txInfo) => !txList.includes(txInfo.txId) && txInfo.isUsed !== true);
+	return txInfoList.filter((txInfo) => !txList.includes(txInfo.txId) && txInfo.isUsed === false && txInfo.swapType == 1);
 };
 
 export const checkConfirmedTx = async () => {
