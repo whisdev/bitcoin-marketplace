@@ -45,7 +45,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.removeSwapTransaction = exports.getMempoolBtcPrice = exports.pushRuneSwapPsbt = exports.pushBrc20SwapPsbt = exports.generateUserBuyBtcSellBrc20Psbt = exports.poolTransferBrc20 = exports.generateUserBuyBrc20SellBtcPsbt = exports.generateUserBuyBtcSellRunePsbt = exports.generateUserBuyRuneSellBtcPsbt = void 0;
+exports.removeSwapTransaction = exports.getMempoolBtcPrice = exports.pushRuneSwapPsbt = exports.pushBrc20SwapPsbt = exports.generateUserBuyBtcSendBrc20Psbt = exports.generateUserBuyBtcSellBrc20Psbt = exports.poolTransferBrc20 = exports.generateUserBuyBrc20SellBtcPsbt = exports.generateUserBuyBtcSellRunePsbt = exports.generateUserBuyRuneSellBtcPsbt = void 0;
 const bitcoin = __importStar(require("bitcoinjs-lib"));
 const ecpair_1 = require("ecpair");
 const runelib_1 = require("runelib");
@@ -145,6 +145,8 @@ const generateUserBuyRuneSellBtcPsbt = (userPubkey, userAddress, userBuyRuneAmou
         poolInputArray.push(cnt++);
         tokenSum += runeutxo.poolRuneAmount;
         usedTxList.push(runeutxo.txId);
+        usingTxInfo.push(runeutxo.txId);
+        scriptpubkey = runeutxo.scriptpubkey;
     }
     console.log("tokenSum < requiredAmount :>> ", tokenSum, requiredAmount);
     // Check if enough rune is gathered
@@ -423,7 +425,6 @@ const generateUserBuyBtcSellRunePsbt = (userPubkey, userAddress, userBuyBtcAmoun
 });
 exports.generateUserBuyBtcSellRunePsbt = generateUserBuyBtcSellRunePsbt;
 const generateUserBuyBrc20SellBtcPsbt = (userPubkey, userAddress, userBuyBrc20Amount, userSendBtcAmount, poolAddress) => __awaiter(void 0, void 0, void 0, function* () {
-    yield (0, service_1.delay)(10000);
     const psbt = new bitcoin.Psbt({ network });
     const feeRate = config_1.testVersion ? config_1.testFeeRate : yield (0, service_1.getFeeRate)();
     const userBtcUtxos = yield (0, service_1.getBtcUtxoByAddress)(userAddress);
@@ -525,16 +526,19 @@ const generateUserBuyBrc20SellBtcPsbt = (userPubkey, userAddress, userBuyBrc20Am
     const userInputArray = [];
     let userTotalBtcAmount = 0;
     let cnt = 0;
+    const inscriptionData = yield (0, service_1.getInscriptionData)(poolAddress, matchedTickerInfo.inscriptionId);
+    console.log("inscriptionData :>> ", inscriptionData);
     psbt.addInput({
-        hash: matchedTickerInfo.txid,
-        index: matchedTickerInfo.vout,
+        hash: inscriptionData.txid,
+        index: inscriptionData.vout,
         witnessUtxo: {
-            value: matchedTickerInfo.satoshi,
-            script: Buffer.from(poolPubkey, "hex"),
+            value: inscriptionData.satoshi,
+            script: Buffer.from(inscriptionData.scriptPk, "hex"),
         },
         tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
     });
     poolInputArray.push(cnt++);
+    console.log("userBtcUtxos :>> ", userBtcUtxos);
     for (const btcutxo of userBtcUtxos) {
         const fee = (0, service_1.calculateTxFee)(psbt, feeRate) + requiredAmount;
         if (userTotalBtcAmount >= fee)
@@ -618,13 +622,17 @@ const poolTransferBrc20 = (userSignedHexedPsbt, userPubkey, userAddress, poolSen
             const psbt = new bitcoin.Psbt({ network });
             const btcUtxos = yield (0, service_1.getBtcUtxoByAddress)(poolAddress);
             let existedInscription;
-            do {
-                const inscriptionList = yield (0, service_1.getBrc20TransferableInscriptionUtxoByAddress)(poolAddress, ticker);
-                console.log("inscriptionList :>> ", inscriptionList);
-                existedInscription = inscriptionList.find((inscription) => inscription.data.tick.toUpperCase() === ticker.toUpperCase() &&
-                    inscription.data.amt === poolSendBrc20Amount);
-            } while (!existedInscription);
+            // do {
+            const inscriptionList = yield (0, service_1.getBrc20TransferableInscriptionUtxoByAddress)(poolAddress, ticker);
+            console.log("inscriptionList :>> ", inscriptionList);
+            console.log("poolSendBrc20Amount :>> ", poolSendBrc20Amount);
+            console.log("ticker :>> ", ticker);
+            existedInscription = inscriptionList.find((inscription) => inscription.data.tick.toUpperCase() === ticker.toUpperCase() &&
+                inscription.data.amt.toString() === poolSendBrc20Amount.toString());
+            // } while (!existedInscription);
+            console.log("existedInscription :>> ", existedInscription);
             const inscriptionData = yield (0, service_1.getInscriptionData)(poolAddress, existedInscription.inscriptionId);
+            console.log("inscriptionData :>> ", inscriptionData);
             psbt.addInput({
                 hash: inscriptionData.txid,
                 index: inscriptionData.vout,
@@ -658,6 +666,7 @@ const poolTransferBrc20 = (userSignedHexedPsbt, userPubkey, userAddress, poolSen
             const fee = (0, service_1.calculateTxFee)(psbt, feeRate);
             if (totalBtcAmount < fee)
                 throw "BTC balance is not enough";
+            console.log("totalBtcAmount < fee :>> ", totalBtcAmount, fee);
             psbt.addOutput({
                 address: poolAddress,
                 value: totalBtcAmount - fee,
@@ -730,7 +739,6 @@ const poolTransferBrc20 = (userSignedHexedPsbt, userPubkey, userAddress, poolSen
 });
 exports.poolTransferBrc20 = poolTransferBrc20;
 const generateUserBuyBtcSellBrc20Psbt = (userAddress, userPubkey, userSendBrc20Amount, userBuyBtcAmount, poolAddress) => __awaiter(void 0, void 0, void 0, function* () {
-    yield (0, service_1.delay)(10000);
     const psbt = new bitcoin.Psbt({ network });
     const feeRate = config_1.testVersion ? config_1.testFeeRate : yield (0, service_1.getFeeRate)();
     const poolInfoResult = yield Brc20PoolInfo_1.default.findOne({
@@ -756,24 +764,26 @@ const generateUserBuyBtcSellBrc20Psbt = (userAddress, userPubkey, userSendBrc20A
             lockedByAddress: userAddress,
         },
     });
-    yield (0, util_1.updatePoolLockStatus)(poolAddress, "BRC20", userAddress);
     const ticker = poolInfoResult.ticker;
     const poolPubkey = poolInfoResult.publickey;
     const userBtcUtxos = yield (0, service_1.getBtcUtxoByAddress)(userAddress);
-    let existedInscription;
-    // do {
-    // 	const inscriptionList = await getBrc20TransferableInscriptionUtxoByAddress(userAddress, ticker);
-    // 	console.log("inscriptionList :>> ", inscriptionList);
-    // 	existedInscription = inscriptionList.find(
-    // 		(inscription) =>
-    // 			inscription.data.tick.toUpperCase() === ticker.toUpperCase() &&
-    // 			inscription.data.amt === userSendBrc20Amount
-    // 	);
-    // } while (!existedInscription);
+    console.log("ticker :>> ", ticker);
+    console.log("userAddress :>> ", userAddress);
+    console.log("userBtcUtxos :>> ", userBtcUtxos);
     const transferableBrc20TickerInfo = yield (0, service_1.getBrc20TransferableInscriptionUtxoByAddress)(userAddress, ticker);
     const matchedTickerInfo = transferableBrc20TickerInfo.find((item) => item.data.amt == userSendBrc20Amount);
     if (!matchedTickerInfo) {
+        console.log("userAddress :>> ", userAddress);
+        console.log("userPubkey :>> ", userPubkey);
         const psbt = yield (0, service_1.generateUserInscribeBrc20Psbt)(userAddress, userPubkey, userSendBrc20Amount, ticker, userBtcUtxos);
+        if (!psbt) {
+            yield Brc20PoolInfo_1.default.findOneAndUpdate({ address: poolAddress }, { $set: { isLocked: false } });
+            return {
+                success: false,
+                message: "Insufficient Rune balance in User",
+                payload: undefined,
+            };
+        }
         return {
             success: true,
             message: "User need to inscribe Brc20 token first",
@@ -783,6 +793,7 @@ const generateUserBuyBtcSellBrc20Psbt = (userAddress, userPubkey, userSendBrc20A
             },
         };
     }
+    yield (0, util_1.updatePoolLockStatus)(poolAddress, "BRC20", userAddress);
     const poolBtcUtxos = yield (0, service_1.getBtcUtxoByAddress)(poolAddress);
     psbt.addOutput({
         address: poolAddress,
@@ -825,7 +836,7 @@ const generateUserBuyBtcSellBrc20Psbt = (userAddress, userPubkey, userSendBrc20A
     }
     // Check if enough BTC balance is available
     if (poolTotalBtcAmount < Math.floor(userBuyBtcAmount * Math.pow(10, 8))) {
-        const poolLockedResult = yield RunePoolInfo_1.default.findOneAndUpdate({ address: poolAddress }, { $set: { isLocked: false } });
+        yield Brc20PoolInfo_1.default.findOneAndUpdate({ address: poolAddress }, { $set: { isLocked: false } });
         return {
             success: false,
             message: "Insufficient BTC balance in Pool",
@@ -852,7 +863,7 @@ const generateUserBuyBtcSellBrc20Psbt = (userAddress, userPubkey, userSendBrc20A
     }
     // Check if enough BTC balance is available
     if (userTotalBtcAmount < fee) {
-        yield RunePoolInfo_1.default.findOneAndUpdate({ address: poolAddress }, { $set: { isLocked: false } });
+        yield Brc20PoolInfo_1.default.findOneAndUpdate({ address: poolAddress }, { $set: { isLocked: false } });
         return {
             success: false,
             message: "Insufficient BTC balance in User wallet",
@@ -876,6 +887,144 @@ const generateUserBuyBtcSellBrc20Psbt = (userAddress, userPubkey, userSendBrc20A
     };
 });
 exports.generateUserBuyBtcSellBrc20Psbt = generateUserBuyBtcSellBrc20Psbt;
+const generateUserBuyBtcSendBrc20Psbt = (userSignedHexedPsbt, userAddress, userPubkey, userSendBrc20Amount, userBuyBtcAmount, poolAddress) => __awaiter(void 0, void 0, void 0, function* () {
+    const userSignedPsbt = bitcoin.Psbt.fromHex(userSignedHexedPsbt);
+    userSignedPsbt.finalizeAllInputs();
+    const userTx = userSignedPsbt.extractTransaction();
+    const userTxHex = userTx.toHex();
+    const userTxId = yield (0, service_1.pushRawTx)(userTxHex);
+    if (!userTxId) {
+        return {
+            success: false,
+            message: `User ${userAddress} need to pay again for inscribe BRC20`,
+            payload: undefined,
+        };
+    }
+    yield (0, service_1.delay)(10000);
+    const psbt = new bitcoin.Psbt({ network });
+    const feeRate = config_1.testVersion ? config_1.testFeeRate : yield (0, service_1.getFeeRate)();
+    const poolInfoResult = yield Brc20PoolInfo_1.default.findOne({
+        address: poolAddress,
+    });
+    if (!poolInfoResult) {
+        return {
+            success: false,
+            message: `No pool found at address ${poolAddress}`,
+            payload: undefined,
+        };
+    }
+    if (poolInfoResult.isLocked) {
+        return {
+            success: false,
+            message: `Pool is locked. you can access ${config_1.lockTime}s later`,
+            payload: undefined,
+        };
+    }
+    yield Brc20PoolInfo_1.default.findOneAndUpdate({ address: poolAddress }, {
+        $set: {
+            isLocked: true,
+            lockedByAddress: userAddress,
+        },
+    });
+    yield (0, util_1.updatePoolLockStatus)(poolAddress, "BRC20", userAddress);
+    const ticker = poolInfoResult.ticker;
+    const poolPubkey = poolInfoResult.publickey;
+    const userBtcUtxos = yield (0, service_1.getBtcUtxoByAddress)(userAddress);
+    const transferableBrc20TickerInfo = yield (0, service_1.getBrc20TransferableInscriptionUtxoByAddress)(userAddress, ticker);
+    const matchedTickerInfo = transferableBrc20TickerInfo.find((item) => item.data.amt == userSendBrc20Amount);
+    const poolBtcUtxos = yield (0, service_1.getBtcUtxoByAddress)(poolAddress);
+    psbt.addOutput({
+        address: poolAddress,
+        value: matchedTickerInfo.satoshi,
+    });
+    psbt.addOutput({
+        address: userAddress,
+        value: Math.floor(userBuyBtcAmount * Math.pow(10, 8)),
+    });
+    const poolInputArray = [];
+    const userInputArray = [];
+    let userTotalBtcAmount = 0;
+    let poolTotalBtcAmount = 0;
+    let cnt = 0;
+    psbt.addInput({
+        hash: matchedTickerInfo.txid,
+        index: matchedTickerInfo.vout,
+        witnessUtxo: {
+            value: matchedTickerInfo.satoshi,
+            script: Buffer.from(matchedTickerInfo.scriptPk, "hex"),
+        },
+        tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
+    });
+    for (const btcutxo of poolBtcUtxos) {
+        if (poolTotalBtcAmount >= Math.floor(userBuyBtcAmount * Math.pow(10, 8)))
+            break;
+        if (btcutxo.value > config_1.SEND_UTXO_FEE_LIMIT) {
+            poolTotalBtcAmount += btcutxo.value;
+            psbt.addInput({
+                hash: btcutxo.txid,
+                index: btcutxo.vout,
+                witnessUtxo: {
+                    script: Buffer.from(btcutxo.scriptpubkey, "hex"),
+                    value: btcutxo.value,
+                },
+                tapInternalKey: Buffer.from(poolPubkey, "hex").slice(1, 33),
+            });
+            poolInputArray.push(cnt++);
+        }
+    }
+    // Check if enough BTC balance is available
+    if (poolTotalBtcAmount < Math.floor(userBuyBtcAmount * Math.pow(10, 8))) {
+        const poolLockedResult = yield Brc20PoolInfo_1.default.findOneAndUpdate({ address: poolAddress }, { $set: { isLocked: false } });
+        return {
+            success: false,
+            message: "Insufficient BTC balance in Pool",
+            payload: undefined,
+        };
+    }
+    const fee = (0, service_1.calculateTxFee)(psbt, feeRate);
+    for (const btcutxo of userBtcUtxos) {
+        if (userTotalBtcAmount >= fee)
+            break;
+        if (btcutxo.value > config_1.SEND_UTXO_FEE_LIMIT) {
+            userTotalBtcAmount += btcutxo.value;
+            psbt.addInput({
+                hash: btcutxo.txid,
+                index: btcutxo.vout,
+                witnessUtxo: {
+                    script: Buffer.from(btcutxo.scriptpubkey, "hex"),
+                    value: btcutxo.value,
+                },
+                tapInternalKey: Buffer.from(userPubkey, "hex").slice(1, 33),
+            });
+            userInputArray.push(cnt++);
+        }
+    }
+    // Check if enough BTC balance is available
+    if (userTotalBtcAmount < fee) {
+        yield Brc20PoolInfo_1.default.findOneAndUpdate({ address: poolAddress }, { $set: { isLocked: false } });
+        return {
+            success: false,
+            message: "Insufficient BTC balance in User wallet",
+            payload: undefined,
+        };
+    }
+    psbt.addOutput({
+        address: userAddress,
+        value: userTotalBtcAmount - fee,
+    });
+    return {
+        success: true,
+        message: `PSBT generated successfully`,
+        payload: {
+            psbt: psbt.toHex(),
+            poolInputArray,
+            userInputArray,
+            userSendBrc20Amount,
+            status: "TRANSFER",
+        },
+    };
+});
+exports.generateUserBuyBtcSendBrc20Psbt = generateUserBuyBtcSendBrc20Psbt;
 const pushBrc20SwapPsbt = (psbt, userSignedHexedPsbt, userAddress, poolAddress, brc20Amount, btcAmount, poolInputArray, userInputArray, swapType) => __awaiter(void 0, void 0, void 0, function* () {
     const isPoolAddressExisted = yield Brc20PoolInfo_1.default.findOne({
         address: poolAddress,

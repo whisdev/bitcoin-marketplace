@@ -404,6 +404,8 @@ const generateUserInscribeBrc20Psbt = (address, publickey, inscribeAmount, ticke
     const psbt = new bitcoin.Psbt({ network });
     const feeRate = config_1.testVersion ? config_1.testFeeRate : yield (0, exports.getFeeRate)();
     const brc20TickerInfo = yield (0, exports.getBrc20TickerInfoByAddress)(address, ticker);
+    console.log("address, ticker :>> ", address, ticker);
+    console.log("brc20TickerInfo :>> ", brc20TickerInfo);
     if (brc20TickerInfo.availableBalance < inscribeAmount)
         throw `No sufficient available BRC20 amount`;
     const orderInscriptionInfo = yield (0, exports.createOrderBrc20Transfer)(address, feeRate, ticker, inscribeAmount);

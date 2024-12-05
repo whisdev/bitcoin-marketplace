@@ -82,7 +82,21 @@ marketplaceRouter.post("/pushBrc20SwapPsbt", (req, res, next) => __awaiter(void 
 marketplaceRouter.post("/generateUserBuyBtcSellBrc20Psbt", (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { userPubkey, userAddress, userSendBrc20Amount, userBuyBtcAmount, poolAddress } = req.body;
-        const payload = yield (0, marketplaceController_1.generateUserBuyBtcSellBrc20Psbt)(userPubkey, userAddress, userSendBrc20Amount, userBuyBtcAmount, poolAddress);
+        console.log("req.body :>> ", req.body);
+        const payload = yield (0, marketplaceController_1.generateUserBuyBtcSellBrc20Psbt)(userAddress, userPubkey, userSendBrc20Amount, userBuyBtcAmount, poolAddress);
+        console.log("payload :>> ", payload);
+        return res.status(200).send(payload);
+    }
+    catch (error) {
+        console.log(error);
+        return res.status(404).send(error);
+    }
+}));
+// generate psbt taht User buy Brc20 && send BTC
+marketplaceRouter.post("/generateUserBuyBtcSendBrc20Psbt", (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { userSignedHexedPsbt, userPubkey, userAddress, userSendBrc20Amount, userBuyBtcAmount, poolAddress, } = req.body;
+        const payload = yield (0, marketplaceController_1.generateUserBuyBtcSendBrc20Psbt)(userSignedHexedPsbt, userAddress, userPubkey, userSendBrc20Amount, userBuyBtcAmount, poolAddress);
         console.log("payload :>> ", payload);
         return res.status(200).send(payload);
     }
@@ -95,7 +109,7 @@ marketplaceRouter.post("/generateUserBuyBtcSellBrc20Psbt", (req, res, next) => _
 marketplaceRouter.post("/pushRuneSwapPsbt", (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, btcAmount, userInputArray, poolInputArray, userAddress, poolAddress, usedTransactionList, swapType, usingTxInfo, scriptpubkey, } = req.body;
-        console.log("usingTxInfo :>> ", usingTxInfo);
+        console.log("req.body :>> ", req.body);
         const payload = yield (0, marketplaceController_1.pushRuneSwapPsbt)(psbt, userSignedHexedPsbt, poolRuneAmount, userRuneAmount, Number(btcAmount), userInputArray, poolInputArray, userAddress, poolAddress, usedTransactionList, swapType, usingTxInfo, scriptpubkey);
         return res.status(200).send(payload);
     }

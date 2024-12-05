@@ -52,8 +52,9 @@ exports.splitData = splitData;
 const filterTransactionInfo = (poolAddress, txList) => __awaiter(void 0, void 0, void 0, function* () {
     const txInfoList = yield RuneTransactionInfo_1.default.find({
         poolAddress: poolAddress,
+        isUsed: false,
     });
-    return txInfoList.filter((txInfo) => !txList.includes(txInfo.txId) && txInfo.isUsed !== true);
+    return txInfoList.filter((txInfo) => !txList.includes(txInfo.txId) && txInfo.isUsed === false && txInfo.swapType == 1);
 });
 exports.filterTransactionInfo = filterTransactionInfo;
 const checkConfirmedTx = () => __awaiter(void 0, void 0, void 0, function* () {
