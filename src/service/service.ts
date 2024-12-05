@@ -393,8 +393,8 @@ export const combinePsbt = async (
 		} else {
 			psbt.combine(signedPsbt1);
 		}
-
 		const tx = psbt.extractTransaction();
+		console.log('tx :>> ', tx);
 		const txHex = tx.toHex();
 
 		const txId = await pushRawTx(txHex);
@@ -416,68 +416,66 @@ export const pushBTCpmt = async (rawtx: any) => {
 
 	return txid;
 };
+// 	address: string,
+// 	publickey: string,
+// 	inscribeAmount: number,
+// 	ticker: string,
+// 	utxos: IUtxo[]
+// ) => {
+// 	const psbt = new bitcoin.Psbt({ network });
+// 	const feeRate = testVersion ? testFeeRate : await getFeeRate();
 
-export const generateUserInscribeBrc20Psbt = async (
-	address: string,
-	publickey: string,
-	inscribeAmount: number,
-	ticker: string,
-	utxos: IUtxo[]
-) => {
-	const psbt = new bitcoin.Psbt({ network });
-	const feeRate = testVersion ? testFeeRate : await getFeeRate();
+// 	const brc20TickerInfo = await getBrc20TickerInfoByAddress(address, ticker);
 
-	const brc20TickerInfo = await getBrc20TickerInfoByAddress(address, ticker);
+// 	console.log("address, ticker :>> ", address, ticker);
+// 	console.log("brc20TickerInfo :>> ", brc20TickerInfo);
 
-	console.log("address, ticker :>> ", address, ticker);
-	console.log("brc20TickerInfo :>> ", brc20TickerInfo);
+// 	if (brc20TickerInfo.availableBalance < inscribeAmount)
+// 		throw `No sufficient available BRC20 amount`;
 
-	if (brc20TickerInfo.availableBalance < inscribeAmount)
-		throw `No sufficient available BRC20 amount`;
+// 	const orderInscriptionInfo = await createOrderBrc20Transfer(
+// 		address,
+// 		feeRate,
+// 		ticker,
+// 		inscribeAmount
+// 	);
 
-	const orderInscriptionInfo = await createOrderBrc20Transfer(
-		address,
-		feeRate,
-		ticker,
-		inscribeAmount
-	);
+// 	const payAddress = orderInscriptionInfo.payAddress;
+// 	const inscriptionPayAmount = orderInscriptionInfo.amount;
 
-	const payAddress = orderInscriptionInfo.payAddress;
-	const inscriptionPayAmount = orderInscriptionInfo.amount;
+// 	psbt.addOutput({
+// 		address: payAddress,
+// 		value: inscriptionPayAmount,
+// 	});
 
-	psbt.addOutput({
-		address: payAddress,
-		value: inscriptionPayAmount,
-	});
+// 	// add btc utxo input
+// 	let totalBtcAmount = 0;
 
-	// add btc utxo input
-	let totalBtcAmount = 0;
+// 	for (const btcutxo of utxos) {
+// 		const fee = calculateTxFee(psbt, feeRate) + inscriptionPayAmount;
+// 		if (totalBtcAmount < fee && btcutxo.value > 10000) {
+// 			totalBtcAmount += btcutxo.value;
 
-	for (const btcutxo of utxos) {
-		const fee = calculateTxFee(psbt, feeRate) + inscriptionPayAmount;
-		if (totalBtcAmount < fee && btcutxo.value > 10000) {
-			totalBtcAmount += btcutxo.value;
+// 			psbt.addInput({
+// 				hash: btcutxo.txid,
+// 				index: btcutxo.vout,
+// 				witnessUtxo: {
+// 					value: btcutxo.value,
+// 					script: Buffer.from(btcutxo.scriptpubkey as string, "hex"),
+// 				},
+// 				tapInternalKey: Buffer.from(publickey, "hex").slice(1, 33),
+// 			});
+// 		}
+// 	}
 
-			psbt.addInput({
-				hash: btcutxo.txid,
-				index: btcutxo.vout,
-				witnessUtxo: {
-					value: btcutxo.value,
-					script: Buffer.from(btcutxo.scriptpubkey as string, "hex"),
-				},
-				tapInternalKey: Buffer.from(publickey, "hex").slice(1, 33),
-			});
-		}
-	}
+// 	const fee = calculateTxFee(psbt, feeRate) + inscriptionPayAmount;
 
-	const fee = calculateTxFee(psbt, feeRate) + inscriptionPayAmount;
+// 	if (totalBtcAmount < fee) throw `BTC balance in User of ${address} is not enough`;
 
-	if (totalBtcAmount < fee) throw `BTC balance in User of ${address} is not enough`;
+// 	psbt.addOutput({
+// 		address: address,
+// 		value: totalBtcAmount - fee,
+// 	});
 
-	psbt.addOutput({
-		address: address,
-		value: totalBtcAmount - fee,
-	});
-
-	return psbt.toHex();
-};
+// 	return psbt.toHex();
+// };

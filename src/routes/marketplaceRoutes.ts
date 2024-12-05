@@ -78,6 +78,8 @@ marketplaceRouter.post("/poolTransferBrc20", async (req, res, next) => {
 			poolAddress,
 		} = req.body;
 
+		console.log('poolTransferBrc20 req.body :>> ', req.body);
+
 		const payload = await poolTransferBrc20(
 			userSignedPsbt,
 			userPubkey,
@@ -131,6 +133,8 @@ marketplaceRouter.post("/pushBrc20SwapPsbt", async (req, res, next) => {
 			swapType,
 		} = req.body;
 
+		console.log('pushBrc20SwapPsbt req.body :>> ', req.body);
+
 		const payload = await pushBrc20SwapPsbt(
 			psbt,
 			userSignedHexedPsbt,
@@ -155,8 +159,6 @@ marketplaceRouter.post("/generateUserBuyBtcSellBrc20Psbt", async (req, res, next
 	try {
 		const { userPubkey, userAddress, userSendBrc20Amount, userBuyBtcAmount, poolAddress } =
 			req.body;
-
-		console.log("req.body :>> ", req.body);
 
 		const payload = await generateUserBuyBtcSellBrc20Psbt(
 			userAddress,
